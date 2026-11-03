@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Quán Nhậu Online</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <!-- Vào cùng bàn là tự kết nối: WebRTC trực tiếp giữa các máy, bắt tay qua PeerJS. -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6e8d4;
+        --bg-deep: #eeddc0;
+        --surface: #fffaf0;
+        --surface-2: #fdf1dc;
+        --ink: #33231a;
+        --ink-soft: #6d5744;
+        --line: #e0c9a4;
+        --amber: #d97b16;
+        --amber-deep: #b45f0a;
+        --amber-soft: #fbe3bd;
+        --red: #b3402a;
+        --red-deep: #93331f;
+        --green: #3e7d3a;
+        --wood: #7a4a26;
+        --wood-dark: #5d3719;
+        --shadow: 0 10px 30px rgba(93, 55, 25, 0.16);
+        --tile-bg: #241610;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1d130c;
+          --bg-deep: #150d07;
+          --surface: #2b1c11;
+          --surface-2: #33231528;
+          --surface-2: #34241a;
+          --ink: #f7e8d2;
+          --ink-soft: #c8a982;
+          --line: #4d3520;
+          --amber: #f09a2e;
+          --amber-deep: #d97b16;
+          --amber-soft: #4a3016;
+          --red: #e05f41;
+          --red-deep: #c74a30;
+          --green: #7cc473;
+          --wood: #8a5a30;
+          --wood-dark: #6b4423;
+          --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+          --tile-bg: #120a05;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: "Be Vietnam Pro", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        min-height: 100vh;
+      }
+      button { font-family: inherit; cursor: pointer; }
+      input { font-family: inherit; }
+
+      /* ---------- Header ---------- */
+      header.topbar {
+        position: sticky; top: 0; z-index: 40;
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        padding: 10px 16px;
+        background: color-mix(in srgb, var(--bg) 88%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 19px; letter-spacing: 0.2px; }
+      .brand .mug { width: 34px; height: 34px; flex: none; }
+      .brand small { display: block; font-size: 11px; font-weight: 600; color: var(--ink-soft); letter-spacing: 0.4px; }
+      .topbar .spacer { flex: 1; }
+      .namebox { display: flex; align-items: center; gap: 8px; }
+      .namebox label { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+      .namebox input {
+        border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+        border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 600; width: 170px;
+      }
+      .namebox input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+      .conn { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+      .conn .dot { width: 10px; height: 10px; border-radius: 50%; background: #b0a08d; flex: none; }
+      .conn.on .dot { background: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 25%, transparent); }
+      .conn.err .dot { background: var(--red); }
+
+      /* ---------- Lobby hero ---------- */
+      .hero {
+        position: relative; overflow: hidden;
+        background: linear-gradient(180deg, var(--bg-deep), var(--bg));
+        border-bottom: 1px solid var(--line);
+      }
+      .hero svg.scene { display: block; width: 100%; height: auto; max-height: 340px; }
+      .hero .hero-text {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        padding: 14px 20px 16px;
+        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 82%, transparent) 55%);
+      }
+      @media (max-width: 640px) {
+        .hero .hero-text { position: static; background: none; padding: 12px 16px 14px; }
+        .hero svg.scene { max-height: 190px; }
+      }
+      .hero h1 { margin: 0; font-size: clamp(24px, 4.6vw, 40px); font-weight: 900; line-height: 1.12; }
+      .hero p { margin: 6px 0 0; font-size: clamp(13.5px, 2vw, 16px); color: var(--ink-soft); font-weight: 500; max-width: 620px; }
+
+      /* ---------- Tables ---------- */
+      main { max-width: 1120px; margin: 0 auto; padding: 22px 16px 48px; }
+      .tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+      .table-card {
+        background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px;
+        padding: 18px 16px 16px; box-shadow: var(--shadow);
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .table-visual { position: relative; width: 128px; height: 128px; margin: 2px auto 0; }
+      .table-top {
+        position: absolute; inset: 26px; border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #c98d54, var(--wood) 62%, var(--wood-dark));
+        border: 3px solid var(--wood-dark);
+        display: flex; align-items: center; justify-content: center;
+        color: #ffe9c4; font-weight: 900; font-size: 15px; text-align: center; line-height: 1.15;
+      }
+      .seat-dot {
+        position: absolute; width: 26px; height: 26px; border-radius: 50%;
+        background: var(--surface-2); border: 2px solid var(--line);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 800; color: var(--ink-soft);
+      }
+      .seat-dot.full { background: var(--amber); border-color: var(--amber-deep); color: #fff; }
+      .table-card h2 { margin: 0; font-size: 18px; font-weight: 800; text-align: center; }
+      .table-card .code { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 1.6px; color: var(--amber-deep); }
+      @media (prefers-color-scheme: dark) { .table-card .code { color: var(--amber); } }
+      .occupants { min-height: 22px; text-align: center; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+      .occupants b { color: var(--ink); }
+      .join-btn {
+        margin-top: auto; border: none; border-radius: 12px; padding: 12px 14px;
+        background: var(--amber); color: #fff; font-size: 15px; font-weight: 800;
+        transition: background 0.15s ease, transform 0.1s ease;
+      }
+      .join-btn:hover { background: var(--amber-deep); }
+      .join-btn:active { transform: scale(0.98); }
+      .join-btn:disabled { background: #a08b6d; cursor: wait; }
+      .lobby-note { margin: 20px auto 0; max-width: 640px; text-align: center; font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
+      .lobby-note b { color: var(--ink); }
+
+      /* ---------- Table room ---------- */
+      #room { display: none; }
+      body.in-room #lobby { display: none; }
+      body.in-room #room { display: block; }
+      .room-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+      .room-head h2 { margin: 0; font-size: 22px; font-weight: 900; }
+      .room-head .meta { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+      .room-head .meta .code { color: var(--amber-deep); letter-spacing: 1.4px; font-weight: 800; }
+      @media (prefers-color-scheme: dark) { .room-head .meta .code { color: var(--amber); } }
+      .room-grid { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+      @media (max-width: 820px) { .room-grid { grid-template-columns: 1fr; } }
+      .videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+      .tile {
+        position: relative; border-radius: 14px; overflow: hidden; background: var(--tile-bg);
+        aspect-ratio: 4 / 3; border: 1.5px solid var(--line);
+      }
+      .tile video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+      .tile.local video { transform: scaleX(-1); }
+      .tile .tag {
+        position: absolute; left: 8px; bottom: 8px; display: flex; align-items: center; gap: 6px;
+        background: rgba(15, 8, 3, 0.72); color: #ffe9c4; font-size: 12.5px; font-weight: 700;
+        padding: 4px 9px; border-radius: 999px; max-width: calc(100% - 16px);
+      }
+      .tile .tag .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tile .badge {
+        position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%;
+        background: rgba(15, 8, 3, 0.72); display: none; align-items: center; justify-content: center;
+      }
+      .tile .badge.show { display: flex; }
+      .tile .badge svg { width: 16px; height: 16px; }
+      .tile .camoff {
+        position: absolute; inset: 0; display: none; flex-direction: column; gap: 6px;
+        align-items: center; justify-content: center; color: #d8c3a5; background: #2a1a0e;
+        font-weight: 700; font-size: 14px; text-align: center; padding: 10px;
+      }
+      .tile .camoff .avatar {
+        width: 52px; height: 52px; border-radius: 50%; background: var(--amber);
+        color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900;
+      }
+      .tile.cam-off .camoff { display: flex; }
+      .tile.cam-off video { visibility: hidden; }
+      .tile.empty {
+        background: var(--surface-2); border-style: dashed; color: var(--ink-soft);
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+        font-size: 13px; font-weight: 600;
+      }
+      .tile.speaking { border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 35%, transparent); }
+
+      .controls {
+        display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px;
+        background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; padding: 12px;
+        box-shadow: var(--shadow);
+      }
+      .ctl {
+        display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--line);
+        background: var(--surface-2); color: var(--ink); border-radius: 999px; padding: 10px 16px;
+        font-size: 14px; font-weight: 700;
+      }
+      .ctl svg { width: 19px; height: 19px; flex: none; }
+      .ctl.off { background: var(--red); border-color: var(--red-deep); color: #fff; }
+      .ctl.cheers { background: var(--amber); border-color: var(--amber-deep); color: #fff; margin-left: auto; }
+      .ctl.cheers:hover { background: var(--amber-deep); }
+      .ctl.leave { background: transparent; border-color: var(--red); color: var(--red); }
+      @media (max-width: 560px) { .ctl.cheers { margin-left: 0; } }
+
+      /* ---------- Chat ---------- */
+      .chat {
+        background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px;
+        box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
+        height: 100%; min-height: 320px; max-height: 560px;
+      }
+      .chat h3 { margin: 0; padding: 12px 14px; font-size: 14.5px; font-weight: 800; border-bottom: 1.5px solid var(--line); }
+      .chat .msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+      .msg { font-size: 13.5px; line-height: 1.45; overflow-wrap: anywhere; }
+      .msg .who { font-weight: 800; }
+      .msg.me .who { color: var(--amber-deep); }
+      @media (prefers-color-scheme: dark) { .msg.me .who { color: var(--amber); } }
+      .msg.sys { text-align: center; color: var(--ink-soft); font-size: 12.5px; font-weight: 600; }
+      .msg.cheers-msg { text-align: center; font-weight: 800; color: var(--amber-deep); font-size: 14px; }
+      @media (prefers-color-scheme: dark) { .msg.cheers-msg { color: var(--amber); } }
+      .chat form { display: flex; gap: 8px; padding: 10px; border-top: 1.5px solid var(--line); }
+      .chat input {
+        flex: 1; min-width: 0; border: 1.5px solid var(--line); border-radius: 10px;
+        background: var(--surface-2); color: var(--ink); padding: 9px 11px; font-size: 14px;
+      }
+      .chat input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
+      .chat form button {
+        border: none; border-radius: 10px; background: var(--amber); color: #fff;
+        font-weight: 800; font-size: 14px; padding: 9px 15px;
+      }
+      .chat form button:hover { background: var(--amber-deep); }
+
+      /* ---------- Cheers overlay ---------- */
+      #cheersFx {
+        position: fixed; inset: 0; z-index: 90; display: none; align-items: center; justify-content: center;
+        pointer-events: none; flex-direction: column; gap: 4px;
+      }
+      #cheersFx.show { display: flex; }
+      #cheersFx .mugs { display: flex; align-items: flex-end; }
+      #cheersFx .mugL, #cheersFx .mugR { width: 92px; height: 92px; }
+      #cheersFx.show .mugL { animation: clinkL 0.55s ease-in-out 2 alternate; }
+      #cheersFx.show .mugR { animation: clinkR 0.55s ease-in-out 2 alternate; }
+      #cheersFx .dzo {
+        font-size: clamp(38px, 9vw, 72px); font-weight: 900; color: var(--amber);
+        text-shadow: 0 3px 0 var(--amber-deep), 0 10px 28px rgba(0,0,0,0.35); letter-spacing: 2px;
+      }
+      #cheersFx.show .dzo { animation: pop 0.5s ease; }
+      #cheersFx .who-cheers { font-weight: 800; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); padding: 5px 14px; border-radius: 999px; font-size: 14px; }
+      @keyframes clinkL { from { transform: rotate(-16deg) translateX(-8px); } to { transform: rotate(7deg) translateX(10px); } }
+      @keyframes clinkR { from { transform: rotate(16deg) translateX(8px); } to { transform: rotate(-7deg) translateX(-10px); } }
+      @keyframes pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        #cheersFx.show .mugL, #cheersFx.show .mugR, #cheersFx.show .dzo { animation: none; }
+      }
+
+      #toast {
+        position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
+        background: var(--ink); color: var(--bg); font-size: 13.5px; font-weight: 600;
+        padding: 10px 16px; border-radius: 12px; opacity: 0; pointer-events: none; transition: all 0.25s ease;
+        z-index: 99; max-width: min(92vw, 480px); text-align: center;
+      }
+      #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="mug" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M10 14h24v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6V14z" fill="#f2a93b"/>
+          <path d="M34 19h3.2a5.8 5.8 0 0 1 0 11.6H34" fill="none" stroke="#f2a93b" stroke-width="3.4"/>
+          <path d="M10 14c2.4-2.4 4.6 1.6 7 0s4.6 1.6 7 0 4.6 1.6 7 0c1.2.8 2.2.6 3 0v4H10v-4z" fill="#fdf3d8"/>
+          <path d="M17 24v9M24 24v9" stroke="#d97b16" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <span>Quán Nhậu Online<small>Vào cùng bàn là nói chuyện được</small></span>
+      </div>
+      <div class="spacer"></div>
+      <div class="namebox">
+        <label for="nameInput">Tên của bạn</label>
+        <input id="nameInput" type="text" maxlength="24" placeholder="Ví dụ: Tâm" autocomplete="off" />
+      </div>
+      <div class="conn on" id="connStatus" title="Ngồi vào cùng một bàn là các máy tự kết nối trực tiếp với nhau (WebRTC)"><span class="dot"></span><span id="connText">Vào cùng bàn là nói chuyện được với bạn bè</span></div>
+    </header>
+
+    <!-- ================= LOBBY ================= -->
+    <div id="lobby">
+      <section class="hero" aria-hidden="true">
+        <svg class="scene" viewBox="0 0 1200 340" preserveAspectRatio="xMidYMax slice">
+          <!-- wall -->
+          <rect x="0" y="0" width="1200" height="250" fill="#8a4b21"/>
+          <rect x="0" y="0" width="1200" height="250" fill="#000" opacity="0.12"/>
+          <rect x="0" y="248" width="1200" height="92" fill="#5d3719"/>
+          <rect x="0" y="244" width="1200" height="6" fill="#3f2410"/>
+          <!-- string lights -->
+          <path d="M0 30 Q 300 95 600 34 T 1200 30" fill="none" stroke="#3f2410" stroke-width="3"/>
+          <path d="M0 78 Q 300 138 600 82 T 1200 74" fill="none" stroke="#3f2410" stroke-width="3"/>
+          <g fill="#ffd97a">
+            <circle cx="120" cy="52" r="7"/><circle cx="300" cy="66" r="7"/><circle cx="480" cy="55" r="7"/>
+            <circle cx="660" cy="50" r="7"/><circle cx="840" cy="56" r="7"/><circle cx="1030" cy="50" r="7"/>
+            <circle cx="200" cy="102" r="6"/><circle cx="420" cy="110" r="6"/><circle cx="640" cy="102" r="6"/>
+            <circle cx="880" cy="104" r="6"/><circle cx="1100" cy="96" r="6"/>
+          </g>
+          <g fill="#ffdf9e" opacity="0.35">
+            <circle cx="120" cy="52" r="16"/><circle cx="480" cy="55" r="16"/><circle cx="840" cy="56" r="16"/>
+            <circle cx="420" cy="110" r="14"/><circle cx="880" cy="104" r="14"/>
+          </g>
+          <!-- lanterns -->
+          <g>
+            <ellipse cx="950" cy="118" rx="26" ry="20" fill="#c93b22"/>
+            <rect x="940" y="96" width="20" height="6" fill="#7a2313"/>
+            <rect x="948" y="136" width="4" height="14" fill="#7a2313"/>
+            <ellipse cx="180" cy="150" rx="22" ry="17" fill="#e0722a"/>
+            <rect x="171" y="131" width="18" height="5" fill="#8a4415"/>
+            <rect x="178" y="165" width="4" height="12" fill="#8a4415"/>
+          </g>
+          <!-- counter -->
+          <rect x="470" y="168" width="260" height="14" rx="4" fill="#3f2410"/>
+          <rect x="482" y="182" width="236" height="66" fill="#6e4423"/>
+          <g fill="#f2a93b">
+            <rect x="500" y="140" width="10" height="28" rx="3"/><rect x="522" y="140" width="10" height="28" rx="3"/>
+            <rect x="544" y="140" width="10" height="28" rx="3"/><rect x="566" y="140" width="10" height="28" rx="3"/>
+          </g>
+          <g fill="#7f9c46">
+            <rect x="600" y="138" width="10" height="30" rx="3"/><rect x="622" y="138" width="10" height="30" rx="3"/>
+            <rect x="644" y="138" width="10" height="30" rx="3"/>
+          </g>
+          <!-- tables -->
+          <g>
+            <ellipse cx="230" cy="278" rx="105" ry="26" fill="#3f2410" opacity="0.35"/>
+            <ellipse cx="230" cy="262" rx="100" ry="24" fill="#c98d54"/>
+            <ellipse cx="230" cy="259" rx="100" ry="24" fill="#dca667"/>
+            <rect x="222" y="266" width="16" height="34" fill="#5d3719"/>
+            <rect x="86" y="252" width="26" height="26" rx="5" fill="#2f6db3"/>
+            <rect x="348" y="252" width="26" height="26" rx="5" fill="#2f6db3"/>
+          </g>
+          <g>
+            <ellipse cx="970" cy="278" rx="105" ry="26" fill="#3f2410" opacity="0.35"/>
+            <ellipse cx="970" cy="262" rx="100" ry="24" fill="#c98d54"/>
+            <ellipse cx="970" cy="259" rx="100" ry="24" fill="#dca667"/>
+            <rect x="962" y="266" width="16" height="34" fill="#5d3719"/>
+            <rect x="826" y="252" width="26" height="26" rx="5" fill="#c93b22"/>
+            <rect x="1088" y="252" width="26" height="26" rx="5" fill="#c93b22"/>
+          </g>
+          <!-- mugs on tables -->
+          <g fill="#f2a93b">
+            <rect x="196" y="238" width="13" height="17" rx="2"/><rect x="252" y="238" width="13" height="17" rx="2"/>
+            <rect x="936" y="238" width="13" height="17" rx="2"/><rect x="992" y="238" width="13" height="17" rx="2"/>
+          </g>
+          <g fill="#fdf3d8">
+            <rect x="196" y="238" width="13" height="4" rx="2"/><rect x="252" y="238" width="13" height="4" rx="2"/>
+            <rect x="936" y="238" width="13" height="4" rx="2"/><rect x="992" y="238" width="13" height="4" rx="2"/>
+          </g>
+          <!-- crate -->
+          <g>
+            <rect x="742" y="252" width="52" height="38" rx="3" fill="#8a2f1d"/>
+            <rect x="742" y="264" width="52" height="5" fill="#6e2415"/>
+            <rect x="742" y="278" width="52" height="5" fill="#6e2415"/>
+            <rect x="752" y="234" width="8" height="18" rx="2" fill="#7f9c46"/>
+            <rect x="766" y="234" width="8" height="18" rx="2" fill="#7f9c46"/>
+            <rect x="780" y="234" width="8" height="18" rx="2" fill="#5d7a33"/>
+          </g>
+        </svg>
+        <div class="hero-text">
+          <h1>Chọn một bàn, ngồi xuống là nhậu</h1>
+          <p>Chọn một bàn, bật mic và webcam là ngồi xuống. Bạn bè chỉ cần mở trang này và ngồi vào <b>đúng bàn đó</b> là hai bên tự nghe và thấy nhau — không cần mã mời, không cần làm gì thêm.</p>
+        </div>
+      </section>
+
+      <main>
+        <div class="tables" id="tables"></div>
+        <p class="lobby-note">Quán có <b>4 bàn</b>, mỗi bàn <b>6 ghế</b>. Khi vào bàn, trình duyệt sẽ xin quyền <b>mic và camera</b> — bấm Cho phép (Allow). Muốn nhậu cùng bạn bè: gửi link quán cho bạn, hẹn nhau ngồi vào <b>cùng một bàn</b> — vào cùng bàn là tự nghe và thấy nhau, tiếng và hình đi <b>trực tiếp giữa các máy</b>, không qua máy chủ trung gian. Ngồi khác bàn thì không nghe hay thấy được nhau.</p>
+      </main>
+    </div>
+
+    <!-- ================= ROOM ================= -->
+    <div id="room">
+      <main>
+        <div class="room-head">
+          <h2 id="roomTitle">Bàn 1</h2>
+          <span class="meta"><span id="roomCount">1/6 người</span></span>
+          <div class="spacer" style="flex:1"></div>
+          <span class="meta" id="mediaNote"></span>
+        </div>
+        <div class="room-grid">
+          <div>
+            <div class="videos" id="videos"></div>
+            <div class="controls">
+              <button class="ctl" id="btnMic" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
+                <span>Mic đang bật</span>
+              </button>
+              <button class="ctl" id="btnCam" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10.5 22 7v10l-7-3.5"/></svg>
+                <span>Camera đang bật</span>
+              </button>
+              <button class="ctl cheers" id="btnCheers" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11v9a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V3z"/><path d="M16 6h2.5a3.5 3.5 0 0 1 0 7H16M8 21h6M10.5 17v4"/></svg>
+                <span>Cạn ly!</span>
+              </button>
+              <button class="ctl leave" id="btnLeave" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                <span>Rời bàn</span>
+              </button>
+            </div>
+          </div>
+          <aside class="chat" aria-label="Chat trong bàn">
+            <h3>Chat trong bàn</h3>
+            <div class="msgs" id="chatMsgs"></div>
+            <form id="chatForm">
+              <input id="chatInput" type="text" maxlength="300" placeholder="Nhắn cho cả bàn…" autocomplete="off" />
+              <button type="submit">Gửi</button>
+            </form>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <!-- Cheers overlay -->
+    <div id="cheersFx" aria-hidden="true">
+      <div class="mugs">
+        <svg class="mugL" viewBox="0 0 48 48"><path d="M10 14h24v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6V14z" fill="#f2a93b"/><path d="M34 19h3.2a5.8 5.8 0 0 1 0 11.6H34" fill="none" stroke="#f2a93b" stroke-width="3.4"/><path d="M10 14c2.4-2.4 4.6 1.6 7 0s4.6 1.6 7 0 4.6 1.6 7 0c1.2.8 2.2.6 3 0v4H10v-4z" fill="#fdf3d8"/></svg>
+        <svg class="mugR" viewBox="0 0 48 48"><path d="M14 14h24v20a6 6 0 0 1-6 6H20a6 6 0 0 1-6-6V14z" fill="#f2a93b"/><path d="M14 19h-3.2a5.8 5.8 0 0 0 0 11.6H14" fill="none" stroke="#f2a93b" stroke-width="3.4"/><path d="M14 14c2.4-2.4 4.6 1.6 7 0s4.6 1.6 7 0 4.6 1.6 7 0c1.2.8 2.2.6 3 0v4H14v-4z" fill="#fdf3d8"/></svg>
+      </div>
+      <div class="dzo">DZÔ!</div>
+      <div class="who-cheers" id="cheersWho"></div>
+    </div>
+
+    <div id="toast" role="status"></div>
+
+    <script>
+      "use strict";
+      /* ============================================================
+         Quán Nhậu Online — vào cùng bàn là nói chuyện được.
+         - Không còn mã mời: mỗi bàn có 6 ghế mạng với định danh cố
+           định; ngồi vào bàn là trang tự nhận một ghế trống và gọi
+           trực tiếp (WebRTC peer-to-peer) cho các ghế còn lại trong
+           bàn. Tiếng, hình, chat và "Cạn ly!" chỉ đi giữa các máy
+           cùng bàn; ngồi khác bàn không nghe/thấy nhau.
+         - Ngồi một mình vẫn xem trước được mic/camera của chính bạn.
+         ============================================================ */
+
+      var TABLES = [
+        { n: 1, name: "Bàn Quầy Bar",   code: "NHAU-01" },
+        { n: 2, name: "Bàn Cây Đa",     code: "NHAU-02" },
+        { n: 3, name: "Bàn Bờ Sông",    code: "NHAU-03" },
+        { n: 4, name: "Bàn Phòng Riêng", code: "NHAU-04" }
+      ];
+      var SEATS = 6;
+
+      function rid(len) {
+        var c = "abcdefghjkmnpqrstuvwxyz23456789", s = "";
+        for (var i = 0; i < (len || 9); i++) s += c[Math.floor(Math.random() * c.length)];
+        return s;
+      }
+      function esc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+        });
+      }
+
+      var myId = rid(9);
+      var myTable = 0;            // 0 = sảnh
+      var localStream = null;
+      var micOn = true, camOn = true;
+      var audioCtx = null;
+
+      var $ = function (id) { return document.getElementById(id); };
+
+      function toast(msg, ms) {
+        var t = $("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        clearTimeout(t._h);
+        t._h = setTimeout(function () { t.classList.remove("show"); }, ms || 3400);
+      }
+      function myName() {
+        var v = $("nameInput").value.trim();
+        return v ? v.slice(0, 24) : "Khách " + myId.slice(0, 4);
+      }
+
+      /* ---------------- Lobby UI ---------------- */
+      function buildLobby() {
+        var wrap = $("tables");
+        wrap.innerHTML = "";
+        TABLES.forEach(function (t) {
+          var card = document.createElement("section");
+          card.className = "table-card";
+          var seats = "";
+          for (var i = 0; i < SEATS; i++) {
+            var ang = (Math.PI * 2 * i) / SEATS - Math.PI / 2;
+            var x = 64 + Math.cos(ang) * 51 - 13;
+            var y = 64 + Math.sin(ang) * 51 - 13;
+            seats += '<span class="seat-dot" data-seat="' + i + '" style="left:' + x + 'px;top:' + y + 'px"></span>';
+          }
+          card.innerHTML =
+            '<div class="table-visual">' + seats +
+              '<div class="table-top">BÀN<br>' + t.n + '</div>' +
+            '</div>' +
+            '<h2>' + esc(t.name) + '</h2>' +
+            '<div class="occupants" id="occ-' + t.n + '">Bàn đang trống</div>' +
+            '<button class="join-btn" type="button" data-join="' + t.n + '">Ngồi vào bàn</button>';
+          wrap.appendChild(card);
+        });
+        wrap.addEventListener("click", function (e) {
+          var b = e.target.closest("[data-join]");
+          if (b) joinTable(parseInt(b.getAttribute("data-join"), 10), b);
+        });
+      }
+
+      function occupantList() {
+        var list = [{ name: myName(), me: true }];
+        Object.keys(peers).forEach(function (id) { list.push({ name: peers[id].name || "Khách", me: false }); });
+        return list;
+      }
+
+      function renderLobby() {
+        TABLES.forEach(function (t) {
+          var occ = $("occ-" + t.n);
+          if (!occ) return;
+          var seated = (myTable === t.n);
+          if (seated) {
+            var people = occupantList();
+            occ.innerHTML = "<b>" + people.length + "/" + SEATS + " người:</b> " +
+              people.map(function (p) { return esc(p.name) + (p.me ? " (bạn)" : ""); }).join(", ");
+          } else {
+            occ.textContent = "Bàn đang trống";
+          }
+          var card = occ.closest(".table-card");
+          if (card) {
+            var dots = card.querySelectorAll(".seat-dot");
+            var folks = seated ? occupantList() : [];
+            dots.forEach(function (d, i) {
+              var p = folks[i];
+              d.classList.toggle("full", !!p);
+              d.textContent = p ? (p.name.trim().charAt(0).toUpperCase() || "?") : "";
+              d.title = p ? p.name : "Ghế trống";
+            });
+            var btn = card.querySelector(".join-btn");
+            if (btn && myTable === 0) {
+              btn.disabled = false;
+              btn.textContent = "Ngồi vào bàn";
+            }
+          }
+        });
+      }
+
+      /* ---------------- Vào / rời bàn ---------------- */
+      function getMedia() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          return Promise.reject(new Error("nomedia"));
+        }
+        return navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+        }).catch(function () {
+          return navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            .then(function (s) { camOn = false; return s; });
+        }).catch(function () {
+          micOn = false; camOn = false;
+          return null;
+        });
+      }
+
+      function enterRoom(n) {
+        myTable = n;
+        document.body.classList.add("in-room");
+        var t = TABLES[n - 1];
+        $("roomTitle").textContent = t.name;
+        var note = [];
+        if (!localStream) note.push("Bạn vào bàn ở chế độ chưa có mic/camera");
+        else if (!camOn) note.push("Không thấy camera — bạn bè chỉ nghe tiếng của bạn");
+        $("mediaNote").textContent = note.join("");
+        if (!localStream || !camOn) toast(note.join(""), 5000);
+        $("chatMsgs").innerHTML = "";
+        sysMsg("Bạn đã vào " + t.name + ". Bạn bè chỉ cần mở trang này và ngồi vào đúng bàn này là hai bên tự nghe và thấy nhau — không cần mã mời.");
+        buildTiles();
+        syncControlButtons();
+        updateRoomCount();
+        renderLobby();
+      }
+
+      function joinTable(n, btn) {
+        if (myTable !== 0) return;
+        if (btn) { btn.disabled = true; btn.textContent = "Đang xin mic & camera…"; }
+
+        getMedia().then(function (stream) {
+          localStream = stream;
+          enterRoom(n);
+          connectToTable(n);
+          if (btn) { btn.disabled = false; btn.textContent = "Ngồi vào bàn"; }
+        }).catch(function () {
+          if (btn) { btn.disabled = false; btn.textContent = "Ngồi vào bàn"; }
+          toast("Không mở được mic/camera. Hãy cho phép quyền truy cập trong trình duyệt rồi thử lại.");
+        });
+      }
+
+      function leaveTable(silent) {
+        if (myTable === 0) return;
+        broadcast({ kind: "bye" });
+        Object.keys(peers).forEach(function (id) {
+          try { if (peers[id].conn) peers[id].conn.close(); } catch (e) {}
+          try { if (peers[id].call) peers[id].call.close(); } catch (e) {}
+        });
+        peers = {};
+        if (myPeer) { try { myPeer.destroy(); } catch (e) {} myPeer = null; mySlot = 0; }
+        if (localStream) { localStream.getTracks().forEach(function (tr) { tr.stop(); }); localStream = null; }
+        myTable = 0;
+        document.body.classList.remove("in-room");
+        setConn("on", "Vào cùng bàn là nói chuyện được với bạn bè");
+        renderLobby();
+        if (!silent) toast("Bạn đã rời bàn, quay lại sảnh.");
+      }
+
+      /* ---------------- Tiles ---------------- */
+      var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="#ffb1a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 10.3V6a3 3 0 0 0-5.9-.8"/><path d="M17 16.9A7 7 0 0 1 5 11M19 11a7 7 0 0 1-.1 1.2M12 19v3M2 2l20 20"/></svg>';
+
+      function tileEl(id, name, isLocal) {
+        var d = document.createElement("div");
+        d.className = "tile" + (isLocal ? " local" : "");
+        d.id = "tile-" + id;
+        d.innerHTML =
+          '<video autoplay playsinline ' + (isLocal ? "muted" : "") + '></video>' +
+          '<div class="camoff"><div class="avatar">' + esc((name || "?").trim().charAt(0).toUpperCase() || "?") + '</div><span>' + esc(name) + '</span></div>' +
+          '<div class="badge mic-badge">' + ICON_MIC_OFF + '</div>' +
+          '<div class="tag"><span class="nm">' + esc(name) + (isLocal ? " (bạn)" : "") + '</span></div>';
+        return d;
+      }
+
+      function buildTiles() {
+        var wrap = $("videos");
+        wrap.innerHTML = "";
+        var mine = tileEl("me", myName(), true);
+        wrap.appendChild(mine);
+        var lv = mine.querySelector("video");
+        if (localStream) { lv.srcObject = localStream; if (lv.play) lv.play().catch(function () {}); }
+        mine.classList.toggle("cam-off", !camOn || !localStream);
+        mine.querySelector(".badge").classList.toggle("show", !micOn);
+        var used = 1;
+        Object.keys(peers).forEach(function (id) {
+          var p = peers[id];
+          var el = tileEl(id, p.name || "Khách", false);
+          wrap.appendChild(el);
+          var rv = el.querySelector("video");
+          if (p.remoteStream) { rv.srcObject = p.remoteStream; if (rv.play) rv.play().catch(function () {}); }
+          el.classList.toggle("cam-off", !p.remoteStream || p.camOn === false);
+          el.querySelector(".badge").classList.toggle("show", p.micOn === false);
+          used++;
+        });
+        for (var i = used; i < SEATS; i++) {
+          var e = document.createElement("div");
+          e.className = "tile empty";
+          e.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="5" y="3" width="14" height="7" rx="2"/><path d="M7 10v11M17 10v11M7 15h10"/></svg><span>Ghế trống</span>';
+          wrap.appendChild(e);
+        }
+      }
+
+      function updateRoomCount() {
+        if (myTable === 0) return;
+        $("roomCount").textContent = (1 + Object.keys(peers).length) + "/" + SEATS + " người";
+      }
+
+      /* ---------------- Controls ---------------- */
+      function syncControlButtons() {
+        var bm = $("btnMic"), bc = $("btnCam");
+        bm.classList.toggle("off", !micOn);
+        bm.querySelector("span").textContent = micOn ? "Mic đang bật" : "Mic đang tắt";
+        bc.classList.toggle("off", !camOn);
+        bc.querySelector("span").textContent = camOn ? "Camera đang bật" : "Camera đang tắt";
+      }
+      $("btnMic").addEventListener("click", function () {
+        micOn = !micOn;
+        if (localStream) localStream.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
+        syncControlButtons();
+        var mine = $("tile-me");
+        if (mine) mine.querySelector(".badge").classList.toggle("show", !micOn);
+        broadcast({ kind: "state", mic: micOn, cam: camOn });
+      });
+      $("btnCam").addEventListener("click", function () {
+        camOn = !camOn;
+        if (localStream) localStream.getVideoTracks().forEach(function (t) { t.enabled = camOn; });
+        syncControlButtons();
+        var mine = $("tile-me");
+        if (mine) mine.classList.toggle("cam-off", !camOn);
+        broadcast({ kind: "state", mic: micOn, cam: camOn });
+      });
+      $("btnLeave").addEventListener("click", function () { leaveTable(false); });
+      $("btnCheers").addEventListener("click", function () {
+        if (myTable === 0) return;
+        onChat({ kind: "cheers", from: myId, name: myName() });
+        broadcast({ kind: "cheers" });
+      });
+
+      /* ---------------- Chat (trong bàn, gửi qua kết nối trực tiếp) ---------------- */
+      function sysMsg(text) {
+        var box = $("chatMsgs");
+        var d = document.createElement("div");
+        d.className = "msg sys";
+        d.textContent = text;
+        box.appendChild(d);
+        box.scrollTop = box.scrollHeight;
+      }
+      function onChat(cm) {
+        if (!cm) return;
+        var box = $("chatMsgs");
+        if (cm.kind === "cheers") {
+          var d = document.createElement("div");
+          d.className = "msg cheers-msg";
+          d.textContent = (cm.from === myId ? "Bạn" : (cm.name || "Ai đó")) + " hô: DZÔ!";
+          box.appendChild(d);
+          box.scrollTop = box.scrollHeight;
+          showCheers(cm.from === myId ? "Bạn" : (cm.name || "Ai đó"));
+          return;
+        }
+        if (cm.kind === "msg" && cm.text) {
+          var m = document.createElement("div");
+          m.className = "msg" + (cm.from === myId ? " me" : "");
+          m.innerHTML = '<span class="who">' + esc(cm.from === myId ? "Bạn" : (cm.name || "Khách")) + ':</span> ' + esc(cm.text);
+          box.appendChild(m);
+          box.scrollTop = box.scrollHeight;
+        }
+      }
+      $("chatForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var v = $("chatInput").value.trim();
+        if (!v || myTable === 0) return;
+        onChat({ kind: "msg", from: myId, name: myName(), text: v.slice(0, 300) });
+        broadcast({ kind: "msg", text: v.slice(0, 300) });
+        $("chatInput").value = "";
+      });
+
+      /* ---------------- Cheers FX ---------------- */
+      var cheersTimer = null;
+      function showCheers(who) {
+        var fx = $("cheersFx");
+        $("cheersWho").textContent = who + " mời cả bàn cạn ly";
+        fx.classList.remove("show");
+        void fx.offsetWidth;
+        fx.classList.add("show");
+        clinkSound();
+        clearTimeout(cheersTimer);
+        cheersTimer = setTimeout(function () { fx.classList.remove("show"); }, 2300);
+      }
+      function clinkSound() {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          var t = audioCtx.currentTime;
+          [5232, 4186].forEach(function (f, i) {
+            var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = "sine"; o.frequency.value = f;
+            g.gain.setValueAtTime(0.0001, t + i * 0.09);
+            g.gain.exponentialRampToValueAtTime(0.12, t + i * 0.09 + 0.012);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.09 + 0.28);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.3);
+          });
+        } catch (e) {}
+      }
+
+      /* ---------------- Kết nối cùng bàn (WebRTC qua PeerJS) ----------------
+         Không còn mã mời: ai ngồi vào cùng một bàn sẽ tự tìm thấy nhau.
+         Mỗi bàn có 6 "ghế mạng" với định danh cố định theo bàn + số ghế;
+         vào bàn thì nhận một ghế còn trống rồi gọi thẳng cho các ghế
+         còn lại trong bàn. Máy chủ bắt tay công cộng của PeerJS chỉ
+         giúp các máy gặp nhau lúc đầu; tiếng, hình, chat và "Cạn ly!"
+         sau đó đi trực tiếp giữa các máy cùng bàn (peer-to-peer).
+         STUN chỉ giúp hai máy tìm đường tới nhau, không lưu dữ liệu. */
+      var peers = {};        // slot -> { slot, name, conn, call, remoteStream, micOn, camOn }
+      var myPeer = null;
+      var mySlot = 0;
+      var peerLibLoading = null;
+      var ICE_SERVERS = [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
+      ];
+      var PEER_SOURCES = [
+        "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js",
+        "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
+        "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"
+      ];
+
+      function peerIdFor(table, slot) { return "quannhau-t" + table + "-ghe" + slot; }
+      function slotFromPeerId(pid) {
+        var m = /-ghe(\d+)/.exec(String(pid || ""));
+        return m ? parseInt(m[1], 10) : 0;
+      }
+      function setConn(state, text) {
+        var c = $("connStatus");
+        if (!c) return;
+        c.classList.toggle("on", state === "on");
+        c.classList.toggle("err", state === "err");
+        $("connText").textContent = text;
+      }
+      function refreshConnText() {
+        if (myTable === 0) return;
+        var n = Object.keys(peers).length;
+        if (n > 0) setConn("on", "Đang nói chuyện với " + n + " bạn cùng bàn");
+        else setConn("", "Đã ngồi vào bàn — đang chờ bạn vào cùng bàn…");
+      }
+      function loadPeerLib() {
+        if (typeof Peer !== "undefined") return Promise.resolve(true);
+        if (peerLibLoading) return peerLibLoading;
+        peerLibLoading = new Promise(function (resolve) {
+          var i = 0;
+          function next() {
+            if (typeof Peer !== "undefined") return resolve(true);
+            if (i >= PEER_SOURCES.length) return resolve(false);
+            var s = document.createElement("script");
+            s.src = PEER_SOURCES[i++];
+            s.async = true;
+            s.onload = function () { if (typeof Peer !== "undefined") resolve(true); else next(); };
+            s.onerror = function () { next(); };
+            document.head.appendChild(s);
+          }
+          next();
+        });
+        return peerLibLoading;
+      }
+
+      function connectToTable(n) {
+        setConn("", "Đang tải thư viện kết nối…");
+        loadPeerLib().then(function (ok) {
+          if (myTable !== n) return; // đã rời bàn trong lúc tải
+          if (!ok) {
+            setConn("err", "Không tải được thư viện kết nối — thử rời bàn rồi vào lại");
+            toast("Không tải được thư viện kết nối nên chưa gặp được bạn cùng bàn. Kiểm tra mạng rồi vào lại bàn nhé.", 5200);
+            return;
+          }
+          setConn("", "Đang tìm ghế trống trong bàn…");
+          claimNext(n, 1, false);
+        });
+      }
+
+      function claimNext(n, slot, sawTaken) {
+        if (myTable !== n) return;
+        if (slot > SEATS) {
+          if (sawTaken) {
+            toast("Bàn đã đủ 6 người rồi — chọn bàn khác nhé.", 4600);
+            leaveTable(true);
+            setConn("on", "Vào cùng bàn là nói chuyện được với bạn bè");
+          } else {
+            setConn("err", "Không nối được tới máy chủ bắt tay — kiểm tra mạng rồi thử lại");
+            toast("Chưa nối được tới máy chủ bắt tay để tìm bạn cùng bàn. Bạn vẫn ngồi tại bàn; rời bàn rồi vào lại để thử lại nhé.", 5600);
+          }
+          return;
+        }
+        var p;
+        try { p = new Peer(peerIdFor(n, slot), { config: { iceServers: ICE_SERVERS } }); }
+        catch (e) { claimNext(n, slot + 1, sawTaken); return; }
+        var opened = false, settled = false;
+        var to = setTimeout(function () {
+          if (settled || opened) return;
+          settled = true;
+          try { p.destroy(); } catch (e) {}
+          claimNext(n, slot + 1, sawTaken);
+        }, 7000);
+        p.on("open", function () {
+          opened = true;
+          clearTimeout(to);
+          if (myTable !== n) { try { p.destroy(); } catch (e) {} return; }
+          myPeer = p;
+          mySlot = slot;
+          wireMyPeer(n);
+          refreshConnText();
+          for (var o = 1; o <= SEATS; o++) { if (o !== slot) callSlot(n, o); }
+        });
+        p.on("error", function (err) {
+          var type = err && err.type;
+          if (!opened) {
+            if (settled) return;
+            if (type === "unavailable-id" || type === "network" || type === "server-error" ||
+                type === "socket-error" || type === "socket-closed" || type === "invalid-id") {
+              settled = true;
+              clearTimeout(to);
+              try { p.destroy(); } catch (e) {}
+              claimNext(n, slot + 1, sawTaken || type === "unavailable-id");
+            }
+          } else {
+            handlePeerError(err);
+          }
+        });
+      }
+
+      function wireMyPeer(n) {
+        myPeer.on("connection", function (conn) {
+          var slot = slotFromPeerId(conn.peer);
+          if (!slot || slot === mySlot || myTable !== n) return;
+          wireConn(slot, conn);
+        });
+        myPeer.on("call", function (call) {
+          var slot = slotFromPeerId(call.peer);
+          if (!slot || slot === mySlot || myTable !== n) { try { call.close(); } catch (e) {} return; }
+          try { if (localStream) call.answer(localStream); else call.answer(); }
+          catch (e) { try { call.answer(); } catch (e2) {} }
+          attachCall(slot, call);
+        });
+        myPeer.on("disconnected", function () {
+          if (myTable === 0) return;
+          setConn("err", "Mất nối tới máy chủ bắt tay — đang tự nối lại…");
+          try { myPeer.reconnect(); } catch (e) {}
+        });
+      }
+
+      function handlePeerError(err) {
+        if (!err) return;
+        if (err.type === "peer-unavailable") {
+          // Ghế đó đang trống — chuyện thường khi gọi thử các ghế còn lại.
+          return;
+        }
+        if (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed") {
+          if (myTable > 0) setConn("err", "Mất nối tới máy chủ bắt tay — các máy đã nối vẫn nói chuyện bình thường");
+        }
+      }
+
+      function getEntry(slot) {
+        if (!peers[slot]) {
+          peers[slot] = { slot: slot, name: "Khách", conn: null, call: null, remoteStream: null, micOn: true, camOn: true };
+        }
+        return peers[slot];
+      }
+
+      function callSlot(n, slot) {
+        if (!myPeer) return;
+        var conn = null;
+        try { conn = myPeer.connect(peerIdFor(n, slot), { reliable: true }); } catch (e) {}
+        if (conn) wireConn(slot, conn);
+        if (localStream) {
+          var call = null;
+          try { call = myPeer.call(peerIdFor(n, slot), localStream); } catch (e) {}
+          if (call) attachCall(slot, call);
+        }
+      }
+
+      function attachCall(slot, call) {
+        call.on("stream", function (rs) {
+          var entry = getEntry(slot);
+          if (entry.call && entry.call !== call) { try { entry.call.close(); } catch (e) {} }
+          entry.call = call;
+          entry.remoteStream = rs;
+          if (myTable > 0) buildTiles();
+        });
+        call.on("close", function () {
+          var entry = peers[slot];
+          if (entry && entry.call === call) { entry.call = null; entry.remoteStream = null; }
+          if (myTable > 0) buildTiles();
+        });
+        call.on("error", function () {});
+      }
+
+      function wireConn(slot, conn) {
+        conn.on("open", function () {
+          var entry = getEntry(slot);
+          if (entry.conn && entry.conn !== conn && entry.conn.open) {
+            try { conn.close(); } catch (e) {}
+            return;
+          }
+          entry.conn = conn;
+          sendTo(entry, { kind: "hello", name: myName(), mic: micOn, cam: camOn });
+          // Người mới vào mà không gọi được (ví dụ họ không có mic/camera)
+          // thì phía đã ngồi sẵn chủ động gọi sang để họ vẫn thấy được bàn.
+          if (localStream && myPeer && !entry.callTried) {
+            entry.callTried = true;
+            var c2 = null;
+            try { c2 = myPeer.call(conn.peer, localStream); } catch (e) {}
+            if (c2) attachCall(slot, c2);
+          }
+          if (myTable > 0) { buildTiles(); updateRoomCount(); renderLobby(); refreshConnText(); }
+        });
+        conn.on("data", function (data) { handleData(slot, data); });
+        conn.on("close", function () { removePeer(slot, true); });
+        conn.on("error", function () {});
+      }
+
+      function handleData(slot, m) {
+        if (!m || typeof m !== "object") return;
+        var entry = getEntry(slot);
+        if (m.kind === "hello") {
+          var isNew = !entry.greeted;
+          entry.name = String(m.name || "Khách").slice(0, 24);
+          entry.micOn = m.mic !== false;
+          entry.camOn = m.cam !== false;
+          entry.greeted = true;
+          if (myTable > 0) {
+            if (isNew) { sysMsg(entry.name + " đã vào bàn."); toast(entry.name + " đã vào bàn."); }
+            buildTiles(); updateRoomCount(); renderLobby(); refreshConnText();
+          }
+        } else if (m.kind === "msg" && m.text) {
+          onChat({ kind: "msg", from: "s" + slot, name: entry.name, text: String(m.text).slice(0, 300) });
+        } else if (m.kind === "cheers") {
+          onChat({ kind: "cheers", from: "s" + slot, name: entry.name });
+        } else if (m.kind === "state") {
+          entry.micOn = m.mic !== false;
+          entry.camOn = m.cam !== false;
+          if (myTable > 0) buildTiles();
+        } else if (m.kind === "bye") {
+          removePeer(slot, true);
+        }
+      }
+
+      function sendTo(entry, obj) {
+        try { if (entry.conn && entry.conn.open) entry.conn.send(obj); } catch (e) {}
+      }
+      function broadcast(obj) {
+        Object.keys(peers).forEach(function (id) { sendTo(peers[id], obj); });
+      }
+      function removePeer(slot, announce) {
+        var entry = peers[slot];
+        if (!entry) return;
+        delete peers[slot];
+        try { if (entry.conn) entry.conn.close(); } catch (e) {}
+        try { if (entry.call) entry.call.close(); } catch (e) {}
+        if (myTable > 0) {
+          if (announce && entry.greeted) { sysMsg(entry.name + " đã rời bàn."); toast(entry.name + " đã rời bàn / mất kết nối."); }
+          buildTiles(); updateRoomCount(); renderLobby(); refreshConnText();
+        }
+      }
+
+      /* ---------------- Misc ---------------- */
+      $("nameInput").addEventListener("change", function () {
+        renderLobby();
+        if (myTable > 0) {
+          buildTiles();
+          broadcast({ kind: "hello", name: myName(), mic: micOn, cam: camOn });
+        }
+      });
+      window.addEventListener("beforeunload", function () {
+        if (localStream) localStream.getTracks().forEach(function (tr) { tr.stop(); });
+      });
+
+      buildLobby();
+      renderLobby();
+    </script>
+  </body>
+</html>
