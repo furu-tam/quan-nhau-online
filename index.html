@@ -3,705 +3,827 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark" />
+    <title>Tâm nè</title>
     <link rel="icon" href="data:," />
-    <title>Quán Nhậu Online</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <!-- Vào cùng bàn là tự kết nối: WebRTC trực tiếp giữa các máy, bắt tay qua PeerJS. -->
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
     <style>
       :root {
-        color-scheme: light dark;
-        --bg: #f6e8d4;
-        --bg-deep: #eeddc0;
-        --surface: #fffaf0;
-        --surface-2: #fdf1dc;
-        --ink: #33231a;
-        --ink-soft: #6d5744;
-        --line: #e0c9a4;
-        --amber: #d97b16;
-        --amber-deep: #b45f0a;
-        --amber-soft: #fbe3bd;
-        --red: #b3402a;
-        --red-deep: #93331f;
-        --green: #3e7d3a;
-        --wood: #7a4a26;
-        --wood-dark: #5d3719;
-        --shadow: 0 10px 30px rgba(93, 55, 25, 0.16);
-        --tile-bg: #241610;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #1d130c;
-          --bg-deep: #150d07;
-          --surface: #2b1c11;
-          --surface-2: #33231528;
-          --surface-2: #34241a;
-          --ink: #f7e8d2;
-          --ink-soft: #c8a982;
-          --line: #4d3520;
-          --amber: #f09a2e;
-          --amber-deep: #d97b16;
-          --amber-soft: #4a3016;
-          --red: #e05f41;
-          --red-deep: #c74a30;
-          --green: #7cc473;
-          --wood: #8a5a30;
-          --wood-dark: #6b4423;
-          --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-          --tile-bg: #120a05;
-        }
+        --bg: #0d1b2a;
+        --ink: #fdf3e2;
+        --ink-dim: #b6c3cf;
+        --sun: #ffa53d;
+        --plate: rgba(10, 22, 36, 0.72);
+        --line: rgba(255, 165, 61, 0.42);
+        --red: #e05f41;
+        color-scheme: dark;
       }
       * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; }
-      body {
-        font-family: "Be Vietnam Pro", system-ui, sans-serif;
-        background: var(--bg);
-        color: var(--ink);
-        min-height: 100vh;
-      }
-      button { font-family: inherit; cursor: pointer; }
-      input { font-family: inherit; }
+      [hidden] { display: none !important; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: "Be Vietnam Pro", system-ui, sans-serif; overflow: hidden; }
+      #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+      button, input { font-family: inherit; }
+      button { cursor: pointer; }
 
-      /* ---------- Header ---------- */
-      header.topbar {
-        position: sticky; top: 0; z-index: 40;
-        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-        padding: 10px 16px;
-        background: color-mix(in srgb, var(--bg) 88%, transparent);
-        backdrop-filter: blur(8px);
-        border-bottom: 1px solid var(--line);
+      .plate {
+        position: fixed; z-index: 5;
+        top: calc(env(safe-area-inset-top, 0px) + 14px);
+        left: max(14px, env(safe-area-inset-left, 0px));
+        padding: 12px 14px 12px;
+        border: 1px solid var(--line); border-radius: 14px;
+        background: var(--plate); backdrop-filter: blur(8px);
+        max-width: min(420px, calc(100vw - 28px));
       }
-      .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 19px; letter-spacing: 0.2px; }
-      .brand .mug { width: 34px; height: 34px; flex: none; }
-      .brand small { display: block; font-size: 11px; font-weight: 600; color: var(--ink-soft); letter-spacing: 0.4px; }
-      .topbar .spacer { flex: 1; }
-      .namebox { display: flex; align-items: center; gap: 8px; }
-      .namebox label { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
-      .namebox input {
-        border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
-        border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 600; width: 170px;
+      .plate h1 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.3px; color: var(--sun); text-shadow: 0 0 14px rgba(255, 165, 61, 0.4); }
+      .plate .sub { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
+      .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+      .row label { font-size: 12px; font-weight: 700; color: var(--ink-dim); }
+      .row input {
+        border: 1px solid var(--line); background: rgba(8, 16, 28, 0.65); color: var(--ink);
+        border-radius: 10px; padding: 7px 10px; font-size: 14px; font-weight: 700; width: 148px;
       }
-      .namebox input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
-      .conn { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
-      .conn .dot { width: 10px; height: 10px; border-radius: 50%; background: #b0a08d; flex: none; }
-      .conn.on .dot { background: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 25%, transparent); }
+      .row input:focus { outline: 2px solid var(--sun); outline-offset: 1px; }
+      .conn { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 650; color: var(--ink-dim); }
+      .conn .dot { width: 9px; height: 9px; border-radius: 50%; background: #8d9aab; flex: none; }
+      .conn.on .dot { background: #7cc473; box-shadow: 0 0 0 4px rgba(124, 196, 115, 0.25); }
       .conn.err .dot { background: var(--red); }
 
-      /* ---------- Lobby hero ---------- */
-      .hero {
-        position: relative; overflow: hidden;
-        background: linear-gradient(180deg, var(--bg-deep), var(--bg));
-        border-bottom: 1px solid var(--line);
+      #labels { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
+      .tag, .facename {
+        position: absolute; transform: translate(-50%, -120%);
+        white-space: nowrap; pointer-events: auto;
+        font-size: 12.5px; font-weight: 800; color: var(--ink);
+        padding: 5px 9px; border-radius: 999px;
+        background: rgba(10, 22, 36, 0.82); border: 1px solid var(--line);
       }
-      .hero svg.scene { display: block; width: 100%; height: auto; max-height: 340px; }
-      .hero .hero-text {
-        position: absolute; left: 0; right: 0; bottom: 0;
-        padding: 14px 20px 16px;
-        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 82%, transparent) 55%);
-      }
-      @media (max-width: 640px) {
-        .hero .hero-text { position: static; background: none; padding: 12px 16px 14px; }
-        .hero svg.scene { max-height: 190px; }
-      }
-      .hero h1 { margin: 0; font-size: clamp(24px, 4.6vw, 40px); font-weight: 900; line-height: 1.12; }
-      .hero p { margin: 6px 0 0; font-size: clamp(13.5px, 2vw, 16px); color: var(--ink-soft); font-weight: 500; max-width: 620px; }
+      .tag b { color: var(--sun); }
+      .tag.hot, .tag.mine { background: var(--sun); color: #1a1208; border-color: var(--sun); }
+      .tag.hot b, .tag.mine b { color: #1a1208; }
+      .facename { pointer-events: none; transform: translate(-50%, -140%); }
 
-      /* ---------- Tables ---------- */
-      main { max-width: 1120px; margin: 0 auto; padding: 22px 16px 48px; }
-      .tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
-      .table-card {
-        background: var(--surface); border: 1.5px solid var(--line); border-radius: 18px;
-        padding: 18px 16px 16px; box-shadow: var(--shadow);
-        display: flex; flex-direction: column; gap: 10px;
+      .dock {
+        position: fixed; z-index: 6;
+        left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+        transform: translateX(-50%);
+        display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+        width: max-content; max-width: calc(100% - 24px);
       }
-      .table-visual { position: relative; width: 128px; height: 128px; margin: 2px auto 0; }
-      .table-top {
-        position: absolute; inset: 26px; border-radius: 50%;
-        background: radial-gradient(circle at 35% 30%, #c98d54, var(--wood) 62%, var(--wood-dark));
-        border: 3px solid var(--wood-dark);
-        display: flex; align-items: center; justify-content: center;
-        color: #ffe9c4; font-weight: 900; font-size: 15px; text-align: center; line-height: 1.15;
+      .dock button, .sidebtn {
+        font: 700 13px "Be Vietnam Pro", sans-serif; color: var(--ink);
+        background: var(--plate); border: 1px solid var(--line);
+        border-radius: 999px; padding: 8px 14px; backdrop-filter: blur(8px);
       }
-      .seat-dot {
-        position: absolute; width: 26px; height: 26px; border-radius: 50%;
-        background: var(--surface-2); border: 2px solid var(--line);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 11px; font-weight: 800; color: var(--ink-soft);
-      }
-      .seat-dot.full { background: var(--amber); border-color: var(--amber-deep); color: #fff; }
-      .table-card h2 { margin: 0; font-size: 18px; font-weight: 800; text-align: center; }
-      .table-card .code { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 1.6px; color: var(--amber-deep); }
-      @media (prefers-color-scheme: dark) { .table-card .code { color: var(--amber); } }
-      .occupants { min-height: 22px; text-align: center; font-size: 13px; color: var(--ink-soft); font-weight: 500; }
-      .occupants b { color: var(--ink); }
-      .join-btn {
-        margin-top: auto; border: none; border-radius: 12px; padding: 12px 14px;
-        background: var(--amber); color: #fff; font-size: 15px; font-weight: 800;
-        transition: background 0.15s ease, transform 0.1s ease;
-      }
-      .join-btn:hover { background: var(--amber-deep); }
-      .join-btn:active { transform: scale(0.98); }
-      .join-btn:disabled { background: #a08b6d; cursor: wait; }
-      .lobby-note { margin: 20px auto 0; max-width: 640px; text-align: center; font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
-      .lobby-note b { color: var(--ink); }
+      .dock button[aria-pressed="true"] { background: var(--sun); color: #1a1208; border-color: var(--sun); }
+      .dock button.off { background: var(--red); border-color: #c74a30; color: #fff; }
+      .dock button.cheers { background: var(--sun); color: #1a1208; border-color: var(--sun); }
+      .dock button.leave { color: #ffb1a1; border-color: rgba(224, 95, 65, 0.7); }
+      .dock button:focus-visible, .sidebtn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-      /* ---------- Table room ---------- */
-      #room { display: none; }
-      body.in-room #lobby { display: none; }
-      body.in-room #room { display: block; }
-      .room-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-      .room-head h2 { margin: 0; font-size: 22px; font-weight: 900; }
-      .room-head .meta { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
-      .room-head .meta .code { color: var(--amber-deep); letter-spacing: 1.4px; font-weight: 800; }
-      @media (prefers-color-scheme: dark) { .room-head .meta .code { color: var(--amber); } }
-      .room-grid { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
-      @media (max-width: 820px) { .room-grid { grid-template-columns: 1fr; } }
-      .videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
-      .tile {
-        position: relative; border-radius: 14px; overflow: hidden; background: var(--tile-bg);
-        aspect-ratio: 4 / 3; border: 1.5px solid var(--line);
+      #selfWrap {
+        position: fixed; z-index: 6; display: none;
+        left: max(14px, env(safe-area-inset-left));
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+        width: 112px; height: 148px; border-radius: 16px; overflow: hidden;
+        border: 1px solid var(--line); background: #140c08; box-shadow: 0 10px 28px rgba(0,0,0,0.35);
       }
-      .tile video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
-      .tile.local video { transform: scaleX(-1); }
-      .tile .tag {
-        position: absolute; left: 8px; bottom: 8px; display: flex; align-items: center; gap: 6px;
-        background: rgba(15, 8, 3, 0.72); color: #ffe9c4; font-size: 12.5px; font-weight: 700;
-        padding: 4px 9px; border-radius: 999px; max-width: calc(100% - 16px);
+      body.in-room #selfWrap { display: block; }
+      #selfWrap video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); background: #000; }
+      #selfWrap.cam-off video { visibility: hidden; }
+      #selfWrap .ph {
+        position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+        font-weight: 900; font-size: 28px; color: #fff; background: #2a1a0e;
       }
-      .tile .tag .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .tile .badge {
-        position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%;
-        background: rgba(15, 8, 3, 0.72); display: none; align-items: center; justify-content: center;
+      #selfWrap.cam-off .ph { display: flex; }
+      #selfWrap span {
+        position: absolute; left: 6px; bottom: 6px; font-size: 11px; font-weight: 800;
+        background: rgba(15, 8, 3, 0.72); color: #ffe9c4; padding: 2px 7px; border-radius: 999px;
       }
-      .tile .badge.show { display: flex; }
-      .tile .badge svg { width: 16px; height: 16px; }
-      .tile .camoff {
-        position: absolute; inset: 0; display: none; flex-direction: column; gap: 6px;
-        align-items: center; justify-content: center; color: #d8c3a5; background: #2a1a0e;
-        font-weight: 700; font-size: 14px; text-align: center; padding: 10px;
-      }
-      .tile .camoff .avatar {
-        width: 52px; height: 52px; border-radius: 50%; background: var(--amber);
-        color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900;
-      }
-      .tile.cam-off .camoff { display: flex; }
-      .tile.cam-off video { visibility: hidden; }
-      .tile.empty {
-        background: var(--surface-2); border-style: dashed; color: var(--ink-soft);
-        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-        font-size: 13px; font-weight: 600;
-      }
-      .tile.speaking { border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 35%, transparent); }
 
-      .controls {
-        display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px;
-        background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px; padding: 12px;
-        box-shadow: var(--shadow);
-      }
-      .ctl {
-        display: inline-flex; align-items: center; gap: 8px; border: 1.5px solid var(--line);
-        background: var(--surface-2); color: var(--ink); border-radius: 999px; padding: 10px 16px;
-        font-size: 14px; font-weight: 700;
-      }
-      .ctl svg { width: 19px; height: 19px; flex: none; }
-      .ctl.off { background: var(--red); border-color: var(--red-deep); color: #fff; }
-      .ctl.cheers { background: var(--amber); border-color: var(--amber-deep); color: #fff; margin-left: auto; }
-      .ctl.cheers:hover { background: var(--amber-deep); }
-      .ctl.leave { background: transparent; border-color: var(--red); color: var(--red); }
-      @media (max-width: 560px) { .ctl.cheers { margin-left: 0; } }
-
-      /* ---------- Chat ---------- */
       .chat {
-        background: var(--surface); border: 1.5px solid var(--line); border-radius: 16px;
-        box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
-        height: 100%; min-height: 320px; max-height: 560px;
+        position: fixed; z-index: 6; top: 14px; right: max(14px, env(safe-area-inset-right));
+        width: min(320px, calc(100vw - 28px));
+        height: min(460px, calc(100vh - 120px));
+        display: none; flex-direction: column;
+        background: var(--plate); border: 1px solid var(--line); border-radius: 16px;
+        backdrop-filter: blur(10px); overflow: hidden;
       }
-      .chat h3 { margin: 0; padding: 12px 14px; font-size: 14.5px; font-weight: 800; border-bottom: 1.5px solid var(--line); }
-      .chat .msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+      body.in-room.chat-open .chat { display: flex; }
+      .chat h3 { margin: 0; padding: 12px 14px; font-size: 14px; border-bottom: 1px solid var(--line); }
+      .chat .msgs { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
       .msg { font-size: 13.5px; line-height: 1.45; overflow-wrap: anywhere; }
       .msg .who { font-weight: 800; }
-      .msg.me .who { color: var(--amber-deep); }
-      @media (prefers-color-scheme: dark) { .msg.me .who { color: var(--amber); } }
-      .msg.sys { text-align: center; color: var(--ink-soft); font-size: 12.5px; font-weight: 600; }
-      .msg.cheers-msg { text-align: center; font-weight: 800; color: var(--amber-deep); font-size: 14px; }
-      @media (prefers-color-scheme: dark) { .msg.cheers-msg { color: var(--amber); } }
-      .chat form { display: flex; gap: 8px; padding: 10px; border-top: 1.5px solid var(--line); }
+      .msg.me .who { color: var(--sun); }
+      .msg.sys { text-align: center; color: var(--ink-dim); font-size: 12.5px; font-weight: 600; }
+      .msg.cheers-msg { text-align: center; font-weight: 800; color: var(--sun); }
+      .chat form { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
       .chat input {
-        flex: 1; min-width: 0; border: 1.5px solid var(--line); border-radius: 10px;
-        background: var(--surface-2); color: var(--ink); padding: 9px 11px; font-size: 14px;
+        flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px;
+        background: rgba(8, 16, 28, 0.65); color: var(--ink); padding: 9px 11px; font-size: 14px;
       }
-      .chat input:focus { outline: 2px solid var(--amber); outline-offset: 1px; }
-      .chat form button {
-        border: none; border-radius: 10px; background: var(--amber); color: #fff;
-        font-weight: 800; font-size: 14px; padding: 9px 15px;
-      }
-      .chat form button:hover { background: var(--amber-deep); }
+      .chat form button { border: none; border-radius: 10px; background: var(--sun); color: #1a1208; font-weight: 800; padding: 9px 14px; }
 
-      /* ---------- Cheers overlay ---------- */
       #cheersFx {
-        position: fixed; inset: 0; z-index: 90; display: none; align-items: center; justify-content: center;
-        pointer-events: none; flex-direction: column; gap: 4px;
+        position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center;
+        pointer-events: none; flex-direction: column;
       }
       #cheersFx.show { display: flex; }
-      #cheersFx .mugs { display: flex; align-items: flex-end; }
-      #cheersFx .mugL, #cheersFx .mugR { width: 92px; height: 92px; }
-      #cheersFx.show .mugL { animation: clinkL 0.55s ease-in-out 2 alternate; }
-      #cheersFx.show .mugR { animation: clinkR 0.55s ease-in-out 2 alternate; }
       #cheersFx .dzo {
-        font-size: clamp(38px, 9vw, 72px); font-weight: 900; color: var(--amber);
-        text-shadow: 0 3px 0 var(--amber-deep), 0 10px 28px rgba(0,0,0,0.35); letter-spacing: 2px;
+        font-size: clamp(42px, 9vw, 76px); font-weight: 900; color: var(--sun);
+        text-shadow: 0 4px 0 #8a4e10, 0 12px 30px rgba(0,0,0,0.45); letter-spacing: 2px;
       }
-      #cheersFx.show .dzo { animation: pop 0.5s ease; }
-      #cheersFx .who-cheers { font-weight: 800; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); padding: 5px 14px; border-radius: 999px; font-size: 14px; }
-      @keyframes clinkL { from { transform: rotate(-16deg) translateX(-8px); } to { transform: rotate(7deg) translateX(10px); } }
-      @keyframes clinkR { from { transform: rotate(16deg) translateX(8px); } to { transform: rotate(-7deg) translateX(-10px); } }
+      #cheersFx.show .dzo { animation: pop 0.45s ease; }
+      #cheersFx .who-cheers { font-weight: 800; background: var(--plate); border: 1px solid var(--line); padding: 5px 14px; border-radius: 999px; }
       @keyframes pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-      @media (prefers-reduced-motion: reduce) {
-        #cheersFx.show .mugL, #cheersFx.show .mugR, #cheersFx.show .dzo { animation: none; }
-      }
 
       #toast {
-        position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
-        background: var(--ink); color: var(--bg); font-size: 13.5px; font-weight: 600;
-        padding: 10px 16px; border-radius: 12px; opacity: 0; pointer-events: none; transition: all 0.25s ease;
-        z-index: 99; max-width: min(92vw, 480px); text-align: center;
+        position: fixed; z-index: 30; left: 50%; bottom: 78px; transform: translateX(-50%) translateY(12px);
+        background: #fdf3e2; color: #1a1208; font-size: 13.5px; font-weight: 700;
+        padding: 10px 16px; border-radius: 12px; opacity: 0; pointer-events: none; transition: 0.25s ease;
+        max-width: min(92vw, 460px); text-align: center;
       }
       #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+      #boot, #err {
+        position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+        background: rgba(13, 27, 42, 0.55); font-weight: 800; text-align: center; padding: 24px;
+      }
+      #err { display: none; }
+      @media (max-width: 720px) {
+        .chat { top: auto; bottom: 70px; height: min(46vh, 360px); }
+        #selfWrap { width: 84px; height: 112px; }
+      }
     </style>
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <svg class="mug" viewBox="0 0 48 48" aria-hidden="true">
-          <path d="M10 14h24v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6V14z" fill="#f2a93b"/>
-          <path d="M34 19h3.2a5.8 5.8 0 0 1 0 11.6H34" fill="none" stroke="#f2a93b" stroke-width="3.4"/>
-          <path d="M10 14c2.4-2.4 4.6 1.6 7 0s4.6 1.6 7 0 4.6 1.6 7 0c1.2.8 2.2.6 3 0v4H10v-4z" fill="#fdf3d8"/>
-          <path d="M17 24v9M24 24v9" stroke="#d97b16" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-        <span>Quán Nhậu Online<small>Vào cùng bàn là nói chuyện được</small></span>
-      </div>
-      <div class="spacer"></div>
-      <div class="namebox">
-        <label for="nameInput">Tên của bạn</label>
-        <input id="nameInput" type="text" maxlength="24" placeholder="Ví dụ: Tâm" autocomplete="off" />
-      </div>
-      <div class="conn on" id="connStatus" title="Ngồi vào cùng một bàn là các máy tự kết nối trực tiếp với nhau (WebRTC)"><span class="dot"></span><span id="connText">Vào cùng bàn là nói chuyện được với bạn bè</span></div>
-    </header>
+    <canvas id="stage" aria-label="Quán Tâm nè, sàn gỗ nhìn ra biển. Bấm một bàn để ngồi và nói chuyện."></canvas>
+    <div id="labels"></div>
 
-    <!-- ================= LOBBY ================= -->
-    <div id="lobby">
-      <section class="hero" aria-hidden="true">
-        <svg class="scene" viewBox="0 0 1200 340" preserveAspectRatio="xMidYMax slice">
-          <!-- wall -->
-          <rect x="0" y="0" width="1200" height="250" fill="#8a4b21"/>
-          <rect x="0" y="0" width="1200" height="250" fill="#000" opacity="0.12"/>
-          <rect x="0" y="248" width="1200" height="92" fill="#5d3719"/>
-          <rect x="0" y="244" width="1200" height="6" fill="#3f2410"/>
-          <!-- string lights -->
-          <path d="M0 30 Q 300 95 600 34 T 1200 30" fill="none" stroke="#3f2410" stroke-width="3"/>
-          <path d="M0 78 Q 300 138 600 82 T 1200 74" fill="none" stroke="#3f2410" stroke-width="3"/>
-          <g fill="#ffd97a">
-            <circle cx="120" cy="52" r="7"/><circle cx="300" cy="66" r="7"/><circle cx="480" cy="55" r="7"/>
-            <circle cx="660" cy="50" r="7"/><circle cx="840" cy="56" r="7"/><circle cx="1030" cy="50" r="7"/>
-            <circle cx="200" cy="102" r="6"/><circle cx="420" cy="110" r="6"/><circle cx="640" cy="102" r="6"/>
-            <circle cx="880" cy="104" r="6"/><circle cx="1100" cy="96" r="6"/>
-          </g>
-          <g fill="#ffdf9e" opacity="0.35">
-            <circle cx="120" cy="52" r="16"/><circle cx="480" cy="55" r="16"/><circle cx="840" cy="56" r="16"/>
-            <circle cx="420" cy="110" r="14"/><circle cx="880" cy="104" r="14"/>
-          </g>
-          <!-- lanterns -->
-          <g>
-            <ellipse cx="950" cy="118" rx="26" ry="20" fill="#c93b22"/>
-            <rect x="940" y="96" width="20" height="6" fill="#7a2313"/>
-            <rect x="948" y="136" width="4" height="14" fill="#7a2313"/>
-            <ellipse cx="180" cy="150" rx="22" ry="17" fill="#e0722a"/>
-            <rect x="171" y="131" width="18" height="5" fill="#8a4415"/>
-            <rect x="178" y="165" width="4" height="12" fill="#8a4415"/>
-          </g>
-          <!-- counter -->
-          <rect x="470" y="168" width="260" height="14" rx="4" fill="#3f2410"/>
-          <rect x="482" y="182" width="236" height="66" fill="#6e4423"/>
-          <g fill="#f2a93b">
-            <rect x="500" y="140" width="10" height="28" rx="3"/><rect x="522" y="140" width="10" height="28" rx="3"/>
-            <rect x="544" y="140" width="10" height="28" rx="3"/><rect x="566" y="140" width="10" height="28" rx="3"/>
-          </g>
-          <g fill="#7f9c46">
-            <rect x="600" y="138" width="10" height="30" rx="3"/><rect x="622" y="138" width="10" height="30" rx="3"/>
-            <rect x="644" y="138" width="10" height="30" rx="3"/>
-          </g>
-          <!-- tables -->
-          <g>
-            <ellipse cx="230" cy="278" rx="105" ry="26" fill="#3f2410" opacity="0.35"/>
-            <ellipse cx="230" cy="262" rx="100" ry="24" fill="#c98d54"/>
-            <ellipse cx="230" cy="259" rx="100" ry="24" fill="#dca667"/>
-            <rect x="222" y="266" width="16" height="34" fill="#5d3719"/>
-            <rect x="86" y="252" width="26" height="26" rx="5" fill="#2f6db3"/>
-            <rect x="348" y="252" width="26" height="26" rx="5" fill="#2f6db3"/>
-          </g>
-          <g>
-            <ellipse cx="970" cy="278" rx="105" ry="26" fill="#3f2410" opacity="0.35"/>
-            <ellipse cx="970" cy="262" rx="100" ry="24" fill="#c98d54"/>
-            <ellipse cx="970" cy="259" rx="100" ry="24" fill="#dca667"/>
-            <rect x="962" y="266" width="16" height="34" fill="#5d3719"/>
-            <rect x="826" y="252" width="26" height="26" rx="5" fill="#c93b22"/>
-            <rect x="1088" y="252" width="26" height="26" rx="5" fill="#c93b22"/>
-          </g>
-          <!-- mugs on tables -->
-          <g fill="#f2a93b">
-            <rect x="196" y="238" width="13" height="17" rx="2"/><rect x="252" y="238" width="13" height="17" rx="2"/>
-            <rect x="936" y="238" width="13" height="17" rx="2"/><rect x="992" y="238" width="13" height="17" rx="2"/>
-          </g>
-          <g fill="#fdf3d8">
-            <rect x="196" y="238" width="13" height="4" rx="2"/><rect x="252" y="238" width="13" height="4" rx="2"/>
-            <rect x="936" y="238" width="13" height="4" rx="2"/><rect x="992" y="238" width="13" height="4" rx="2"/>
-          </g>
-          <!-- crate -->
-          <g>
-            <rect x="742" y="252" width="52" height="38" rx="3" fill="#8a2f1d"/>
-            <rect x="742" y="264" width="52" height="5" fill="#6e2415"/>
-            <rect x="742" y="278" width="52" height="5" fill="#6e2415"/>
-            <rect x="752" y="234" width="8" height="18" rx="2" fill="#7f9c46"/>
-            <rect x="766" y="234" width="8" height="18" rx="2" fill="#7f9c46"/>
-            <rect x="780" y="234" width="8" height="18" rx="2" fill="#5d7a33"/>
-          </g>
-        </svg>
-        <div class="hero-text">
-          <h1>Chọn một bàn, ngồi xuống là nhậu</h1>
-          <p>Chọn một bàn, bật mic và webcam là ngồi xuống. Bạn bè chỉ cần mở trang này và ngồi vào <b>đúng bàn đó</b> là hai bên tự nghe và thấy nhau — không cần mã mời, không cần làm gì thêm.</p>
-        </div>
-      </section>
-
-      <main>
-        <div class="tables" id="tables"></div>
-        <p class="lobby-note">Quán có <b>4 bàn</b>, mỗi bàn <b>6 ghế</b>. Khi vào bàn, trình duyệt sẽ xin quyền <b>mic và camera</b> — bấm Cho phép (Allow). Muốn nhậu cùng bạn bè: gửi link quán cho bạn, hẹn nhau ngồi vào <b>cùng một bàn</b> — vào cùng bàn là tự nghe và thấy nhau, tiếng và hình đi <b>trực tiếp giữa các máy</b>, không qua máy chủ trung gian. Ngồi khác bàn thì không nghe hay thấy được nhau.</p>
-      </main>
+    <div class="plate">
+      <h1>Tâm nè</h1>
+      <p class="sub" id="blurb">12 bàn nhìn ra biển · bấm một bàn inox để ngồi</p>
+      <div class="row">
+        <label for="nameInput">Tên</label>
+        <input id="nameInput" type="text" maxlength="24" placeholder="Tên của bạn" autocomplete="off" />
+      </div>
+      <div class="row">
+        <div class="conn" id="connStatus"><span class="dot"></span><span id="connText">Vào cùng bàn là nói chuyện được với bạn bè</span></div>
+      </div>
     </div>
 
-    <!-- ================= ROOM ================= -->
-    <div id="room">
-      <main>
-        <div class="room-head">
-          <h2 id="roomTitle">Bàn 1</h2>
-          <span class="meta"><span id="roomCount">1/6 người</span></span>
-          <div class="spacer" style="flex:1"></div>
-          <span class="meta" id="mediaNote"></span>
-        </div>
-        <div class="room-grid">
-          <div>
-            <div class="videos" id="videos"></div>
-            <div class="controls">
-              <button class="ctl" id="btnMic" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
-                <span>Mic đang bật</span>
-              </button>
-              <button class="ctl" id="btnCam" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10.5 22 7v10l-7-3.5"/></svg>
-                <span>Camera đang bật</span>
-              </button>
-              <button class="ctl cheers" id="btnCheers" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11v9a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V3z"/><path d="M16 6h2.5a3.5 3.5 0 0 1 0 7H16M8 21h6M10.5 17v4"/></svg>
-                <span>Cạn ly!</span>
-              </button>
-              <button class="ctl leave" id="btnLeave" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-                <span>Rời bàn</span>
-              </button>
-            </div>
-          </div>
-          <aside class="chat" aria-label="Chat trong bàn">
-            <h3>Chat trong bàn</h3>
-            <div class="msgs" id="chatMsgs"></div>
-            <form id="chatForm">
-              <input id="chatInput" type="text" maxlength="300" placeholder="Nhắn cho cả bàn…" autocomplete="off" />
-              <button type="submit">Gửi</button>
-            </form>
-          </aside>
-        </div>
-      </main>
+    <div id="selfWrap"><video id="selfVideo" autoplay playsinline muted></video><div class="ph" id="selfPh">?</div><span>Bạn</span></div>
+
+    <aside class="chat" aria-label="Chat trong bàn">
+      <h3 id="roomTitle">Bàn</h3>
+      <div class="msgs" id="chatMsgs"></div>
+      <form id="chatForm">
+        <input id="chatInput" type="text" maxlength="300" placeholder="Nhắn cho cả bàn…" autocomplete="off" />
+        <button type="submit">Gửi</button>
+      </form>
+    </aside>
+
+    <div class="dock" id="dockLobby" role="group" aria-label="Góc nhìn">
+      <button type="button" id="v3d" aria-pressed="true">Phối cảnh</button>
+      <button type="button" id="vplan" aria-pressed="false">Mặt bằng</button>
+      <button type="button" id="vsea" aria-pressed="false">Ngắm biển</button>
+      <button type="button" id="vdj" aria-pressed="false">Góc DJ</button>
+    </div>
+    <div class="dock" id="dockRoom" hidden>
+      <button type="button" id="btnMic">Mic đang bật</button>
+      <button type="button" id="btnCam">Camera đang bật</button>
+      <button type="button" class="cheers" id="btnCheers">Cạn ly!</button>
+      <button type="button" id="btnChat">Chat</button>
+      <button type="button" class="leave" id="btnLeave">Rời bàn</button>
     </div>
 
-    <!-- Cheers overlay -->
     <div id="cheersFx" aria-hidden="true">
-      <div class="mugs">
-        <svg class="mugL" viewBox="0 0 48 48"><path d="M10 14h24v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6V14z" fill="#f2a93b"/><path d="M34 19h3.2a5.8 5.8 0 0 1 0 11.6H34" fill="none" stroke="#f2a93b" stroke-width="3.4"/><path d="M10 14c2.4-2.4 4.6 1.6 7 0s4.6 1.6 7 0 4.6 1.6 7 0c1.2.8 2.2.6 3 0v4H10v-4z" fill="#fdf3d8"/></svg>
-        <svg class="mugR" viewBox="0 0 48 48"><path d="M14 14h24v20a6 6 0 0 1-6 6H20a6 6 0 0 1-6-6V14z" fill="#f2a93b"/><path d="M14 19h-3.2a5.8 5.8 0 0 0 0 11.6H14" fill="none" stroke="#f2a93b" stroke-width="3.4"/><path d="M14 14c2.4-2.4 4.6 1.6 7 0s4.6 1.6 7 0 4.6 1.6 7 0c1.2.8 2.2.6 3 0v4H14v-4z" fill="#fdf3d8"/></svg>
-      </div>
       <div class="dzo">DZÔ!</div>
       <div class="who-cheers" id="cheersWho"></div>
     </div>
-
     <div id="toast" role="status"></div>
+    <div id="boot">Đang dựng quán Tâm nè…</div>
+    <p id="err" hidden>Trình duyệt này không mở được quán 3D.</p>
 
-    <script>
-      "use strict";
+    <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    } }
+    </script>
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      const SEATS = 4;
+      const ZONES = ["sát biển", "giữa sân", "gần quầy"];
+      const $ = (id) => document.getElementById(id);
+      const canvas = $("stage");
+
+      let renderer;
+      try {
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      } catch (e) {
+        $("boot").hidden = true;
+        $("err").hidden = false;
+        throw e;
+      }
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(0x2a3550, 55, 240);
+      const persp = new THREE.PerspectiveCamera(45, 1, 0.1, 600);
+      persp.position.set(-15, 9.5, -17);
+      const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+      ortho.position.set(0, 80, -1.5);
+      ortho.up.set(0, 0, -1);
+      ortho.lookAt(0, 0, -1.5);
+      let camera = persp;
+
+      const controls = new OrbitControls(persp, canvas);
+      controls.target.set(1, 1.2, -1.2);
+      controls.enableDamping = true;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.minDistance = 2;
+      controls.maxDistance = 42;
+
+      const SUN = new THREE.Vector3(-0.25, 0.045, -1).normalize();
+      const sky = new THREE.Mesh(new THREE.SphereGeometry(380, 28, 16), new THREE.ShaderMaterial({
+        side: THREE.BackSide, depthWrite: false, fog: false,
+        uniforms: { uSun: { value: SUN } },
+        vertexShader: "varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
+        fragmentShader: `
+          varying vec3 vD; uniform vec3 uSun;
+          float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+          void main(){
+            float y = max(vD.y, 0.0);
+            vec3 top = vec3(0.04,0.07,0.17), mid = vec3(0.32,0.2,0.42), hor = vec3(1.0,0.48,0.25);
+            vec3 c = mix(hor, mid, smoothstep(0.0, 0.18, y));
+            c = mix(c, top, smoothstep(0.15, 0.6, y));
+            float s = max(dot(vD, uSun), 0.0);
+            c += vec3(1.0,0.55,0.25) * pow(s, 18.0) * 0.6 + vec3(1.0,0.85,0.6) * smoothstep(0.9985, 0.9993, s) * 3.0;
+            vec2 g = floor(vD.xz / max(vD.y, 0.05) * 140.0);
+            c += step(0.9975, h(g)) * smoothstep(0.25, 0.6, y) * 0.9;
+            if (vD.y < 0.0) c = vec3(0.05,0.09,0.15);
+            gl_FragColor = vec4(c, 1.0);
+          }`
+      }));
+      scene.add(sky);
+      scene.add(new THREE.HemisphereLight(0x7d8fc4, 0x2a2018, 0.42));
+
+      const worldTables = [];
+      const pickers = [];
+      const glasses = [];
+      let root = null;
+      let mixer = null;
+      let sceneReady = false;
+      let hovered = -1;
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.72, 0.025, 8, 40),
+        new THREE.MeshBasicMaterial({ color: 0xffa53d, toneMapped: false })
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.visible = false;
+      scene.add(ring);
+
+      const _v = new THREE.Vector3();
+      const labelsEl = $("labels");
+
+      function tableInfo(i) {
+        return { n: i + 1, name: "Bàn " + (i + 1), zone: ZONES[Math.floor(i / 4)] || "" };
+      }
+
+      function makeNeon(text) {
+        const c = document.createElement("canvas");
+        c.width = 1024; c.height = 256;
+        const g = c.getContext("2d");
+        g.clearRect(0, 0, c.width, c.height);
+        g.font = '800 132px "Be Vietnam Pro", sans-serif';
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.shadowColor = "#ff7a2a"; g.shadowBlur = 28;
+        g.fillStyle = "#ffd5a0";
+        g.fillText(text, c.width / 2, c.height / 2 + 6);
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      }
+      function makeBar(text) {
+        const c = document.createElement("canvas");
+        c.width = 1024; c.height = 128;
+        const g = c.getContext("2d");
+        for (let x = 0; x < c.width; x += 22) {
+          g.fillStyle = (x / 22) % 2 ? "#5a3218" : "#7a4724";
+          g.fillRect(x, 0, 20, c.height);
+        }
+        g.font = '800 64px "Be Vietnam Pro", sans-serif';
+        g.fillStyle = "#ffd27a";
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText(text, c.width / 2, c.height / 2 + 2);
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      }
+      function retitleSigns() {
+        if (!root) return;
+        const neonTex = makeNeon("Tâm nè");
+        const barTex = makeBar("Tâm nè");
+        root.traverse((o) => {
+          if (!o.isMesh) return;
+          o.getWorldPosition(_v);
+          const mats = [].concat(o.material);
+          if (Math.abs(_v.x + 7.6) < 0.5 && _v.y > 2.8 && _v.z > 5) {
+            mats.forEach((m) => {
+              if (m && m.map) { m.map = neonTex; m.toneMapped = false; m.transparent = true; m.needsUpdate = true; }
+            });
+          }
+          if (Math.abs(_v.x + 7.6) < 0.5 && Math.abs(_v.z - 5.6) < 0.6 && _v.y > 0.7 && _v.y < 2) {
+            mats.forEach((m) => { if (m && m.map) { m.map = barTex; m.needsUpdate = true; } });
+          }
+        });
+      }
+
+      function avatarTex(name) {
+        const c = document.createElement("canvas");
+        c.width = 256; c.height = 340;
+        const g = c.getContext("2d");
+        g.fillStyle = "#2a1a0e"; g.fillRect(0, 0, 256, 340);
+        g.fillStyle = "#e08a2a"; g.beginPath(); g.arc(128, 130, 52, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#fff"; g.font = "800 48px Be Vietnam Pro, sans-serif";
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText((name || "?").trim().charAt(0).toUpperCase() || "?", 128, 134);
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      }
+
+      function createScreen() {
+        const video = document.createElement("video");
+        video.playsInline = true; video.autoplay = true;
+        const videoTex = new THREE.VideoTexture(video);
+        videoTex.colorSpace = THREE.SRGBColorSpace;
+        const face = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.58, 0.76),
+          new THREE.MeshBasicMaterial({ map: videoTex, toneMapped: false })
+        );
+        const frame = new THREE.Mesh(
+          new THREE.BoxGeometry(0.66, 0.84, 0.04),
+          new THREE.MeshStandardMaterial({ color: 0x24160f, roughness: 0.72 })
+        );
+        frame.position.z = -0.03;
+        const g = new THREE.Group();
+        g.add(frame, face);
+        g.visible = false;
+        scene.add(g);
+        const tag = document.createElement("div");
+        tag.className = "facename";
+        tag.hidden = true;
+        labelsEl.appendChild(tag);
+        g.userData = { video, videoTex, face, tag, avatarTex: null, avatarName: "" };
+        return g;
+      }
+
+      function layoutTables(gltfScene) {
+        const meshes = [];
+        const stools = [];
+        gltfScene.traverse((o) => {
+          if (/^table_\d+$/.test(o.name || "")) meshes.push(o);
+          if (/^stool_(red|blue)_\d+$/.test(o.name || "")) stools.push(o);
+          if (/^beer_glass_\d+$/.test(o.name || "")) glasses.push(o);
+          if (o.isMesh) {
+            const mats = [].concat(o.material || []);
+            mats.forEach((m) => {
+              if (m && m.name && m.name.indexOf("beam") === 0) {
+                m.blending = THREE.AdditiveBlending;
+                m.depthWrite = false;
+                m.transparent = true;
+              }
+            });
+          }
+        });
+        meshes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        const stoolPos = stools.map((s) => { const p = new THREE.Vector3(); s.getWorldPosition(p); return p; });
+        meshes.forEach((mesh, i) => {
+          const pos = new THREE.Vector3();
+          mesh.getWorldPosition(pos);
+          const near = stoolPos
+            .map((p, idx) => ({ idx, d: p.distanceTo(pos), p }))
+            .sort((a, b) => a.d - b.d)
+            .slice(0, SEATS)
+            .sort((a, b) => Math.atan2(a.p.z - pos.z, a.p.x - pos.x) - Math.atan2(b.p.z - pos.z, b.p.x - pos.x));
+          const seats = near.map((s) => s.p.clone());
+          const screens = seats.map((sp) => {
+            const screen = createScreen();
+            screen.position.copy(sp);
+            screen.position.y = pos.y + 1.05;
+            return screen;
+          });
+          const tag = document.createElement("button");
+          tag.type = "button";
+          tag.className = "tag";
+          const info = tableInfo(i);
+          tag.innerHTML = "<b>Bàn " + info.n + "</b>";
+          tag.title = info.zone;
+          tag.addEventListener("click", (e) => { e.stopPropagation(); joinTable(info.n); });
+          labelsEl.appendChild(tag);
+          const picker = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.95, 0.95, 1.4, 16),
+            new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+          );
+          picker.position.copy(pos); picker.position.y += 0.7;
+          picker.userData.table = i;
+          scene.add(picker);
+          pickers.push(picker);
+          worldTables.push({ index: i, pos, seats, screens, tag, mesh });
+        });
+      }
+
+      const loader = new GLTFLoader();
+      loader.load("assets/quan-gio-bien_scene.glb", (gltf) => {
+        root = gltf.scene;
+        scene.add(root);
+        root.updateMatrixWorld(true);
+        layoutTables(root);
+        retitleSigns();
+        document.fonts.ready.then(retitleSigns);
+        if (gltf.animations && gltf.animations.length) {
+          mixer = new THREE.AnimationMixer(root);
+          gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
+        }
+        sceneReady = true;
+        $("boot").hidden = true;
+        renderLabels();
+      }, undefined, () => {
+        $("boot").hidden = true;
+        $("err").hidden = false;
+        $("err").textContent = "Không tải được mô hình quán. Thử tải lại trang.";
+      });
+
+      /* ---------- camera views ---------- */
+      const VIEWS = {
+        v3d: [new THREE.Vector3(-15, 9.5, -17), new THREE.Vector3(1, 1.2, -1.2)],
+        vsea: [new THREE.Vector3(-5.6, 1.85, 1.8), new THREE.Vector3(-7.5, 0.7, -20)],
+        vdj: [new THREE.Vector3(3.5, 3.2, -3.5), new THREE.Vector3(7.8, 2.4, 5)]
+      };
+      let mode = "v3d";
+      const tween = { from: null, to: null, tf: null, tt: null, k: 1 };
+      function fitOrtho() {
+        const aspect = innerWidth / innerHeight;
+        let hh = 13;
+        if (hh * aspect < 16) hh = 16 / aspect;
+        Object.assign(ortho, { left: -hh * aspect, right: hh * aspect, top: hh, bottom: -hh });
+        ortho.updateProjectionMatrix();
+      }
+      function setView(m) {
+        if (myTable !== 0) return;
+        mode = m;
+        ["v3d", "vplan", "vsea", "vdj"].forEach((k) => $(k).setAttribute("aria-pressed", String(k === m)));
+        if (m === "vplan") {
+          camera = ortho;
+          controls.enabled = false;
+          sky.visible = false;
+          return;
+        }
+        camera = persp;
+        controls.enabled = false;
+        sky.visible = true;
+        const goal = VIEWS[m];
+        tween.from = persp.position.clone();
+        tween.tf = controls.target.clone();
+        tween.to = goal[0];
+        tween.tt = goal[1];
+        tween.k = 0;
+      }
+      ["v3d", "vplan", "vsea", "vdj"].forEach((k) => $(k).addEventListener("click", () => setView(k)));
+
+      function sitCamera(table, slot) {
+        const eye = table.pos.clone();
+        eye.x += (slot - 2.5) * 0.4;
+        eye.z += 1.65;
+        eye.y = table.pos.y + 1.45;
+        const look = table.pos.clone();
+        look.z -= 0.85;
+        look.y = table.pos.y + 0.95;
+        mode = "seat";
+        camera = persp;
+        sky.visible = true;
+        controls.enabled = false;
+        tween.from = persp.position.clone();
+        tween.tf = controls.target.clone();
+        tween.to = eye;
+        tween.tt = look;
+        tween.k = 0;
+      }
+      function releaseCamera() {
+        controls.minDistance = 2;
+        controls.maxDistance = 42;
+        controls.maxPolarAngle = Math.PI * 0.49;
+        setView("v3d");
+      }
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      let down = null;
+      canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
+      canvas.addEventListener("pointerup", (e) => {
+        if (!down || !sceneReady || myTable !== 0) { down = null; return; }
+        const dx = e.clientX - down.x, dy = e.clientY - down.y;
+        down = null;
+        if (dx * dx + dy * dy > 36) return;
+        pointer.x = (e.clientX / innerWidth) * 2 - 1;
+        pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const hit = raycaster.intersectObjects(pickers, false)[0];
+        if (hit) joinTable(hit.object.userData.table + 1);
+      });
+      canvas.addEventListener("pointermove", (e) => {
+        if (!sceneReady || myTable !== 0) { hovered = -1; ring.visible = false; canvas.style.cursor = ""; return; }
+        pointer.x = (e.clientX / innerWidth) * 2 - 1;
+        pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const hit = raycaster.intersectObjects(pickers, false)[0];
+        hovered = hit ? hit.object.userData.table : -1;
+        canvas.style.cursor = hovered >= 0 ? "pointer" : "";
+        if (hovered >= 0) {
+          ring.visible = true;
+          ring.position.copy(worldTables[hovered].pos);
+          ring.position.y += 0.68;
+        } else ring.visible = false;
+      });
+
+      function renderLabels() {
+        const w = innerWidth, h = innerHeight;
+        camera.updateMatrixWorld();
+        worldTables.forEach((t, i) => {
+          const show = myTable === 0;
+          t.tag.hidden = !show;
+          if (!show) return;
+          _v.copy(t.pos); _v.y += 1.35;
+          _v.project(camera);
+          const behind = _v.z > 1;
+          t.tag.hidden = behind;
+          t.tag.style.left = (( _v.x + 1) / 2 * w) + "px";
+          t.tag.style.top = ((1 - _v.y) / 2 * h) + "px";
+          t.tag.classList.toggle("hot", hovered === i);
+          t.tag.classList.toggle("mine", false);
+        });
+        if (myTable > 0) {
+          const t = worldTables[myTable - 1];
+          if (t) t.screens.forEach((s) => {
+            const tag = s.userData.tag;
+            if (!s.visible) { tag.hidden = true; return; }
+            s.lookAt(camera.position.x, s.position.y, camera.position.z);
+            _v.copy(s.position); _v.y += 0.55;
+            _v.project(camera);
+            tag.hidden = _v.z > 1;
+            tag.style.left = ((_v.x + 1) / 2 * w) + "px";
+            tag.style.top = ((1 - _v.y) / 2 * h) + "px";
+          });
+        }
+      }
+
+      function resize() {
+        const w = innerWidth, h = innerHeight;
+        renderer.setSize(w, h, false);
+        persp.aspect = w / h;
+        persp.updateProjectionMatrix();
+        fitOrtho();
+      }
+      addEventListener("resize", resize);
+      resize();
+
+      const clock = new THREE.Clock();
+      let cheerLeft = 0;
+      renderer.setAnimationLoop(() => {
+        const dt = Math.min(clock.getDelta(), 0.05);
+        if (mixer) mixer.update(dt);
+        if (tween.k < 1 && tween.to) {
+          tween.k = Math.min(1, tween.k + dt / 1.05);
+          const e = tween.k * tween.k * (3 - 2 * tween.k);
+          persp.position.lerpVectors(tween.from, tween.to, e);
+          controls.target.lerpVectors(tween.tf, tween.tt, e);
+          if (tween.k >= 1) {
+            controls.enabled = mode !== "vplan";
+            if (mode === "seat") {
+              controls.minDistance = 1.4;
+              controls.maxDistance = 3.6;
+              controls.maxPolarAngle = Math.PI * 0.55;
+            }
+          }
+        }
+        if (cheerLeft > 0) {
+          cheerLeft = Math.max(0, cheerLeft - dt);
+          const s = 1 + Math.sin((1 - cheerLeft) * 18) * 0.12 * cheerLeft;
+          glasses.forEach((g) => g.scale.setScalar(cheerLeft > 0 ? s : 1));
+        }
+        if (camera === persp && tween.k >= 1) controls.update();
+        renderLabels();
+        renderer.render(scene, camera);
+      });
+
       /* ============================================================
-         Quán Nhậu Online — vào cùng bàn là nói chuyện được.
-         - Không còn mã mời: mỗi bàn có 6 ghế mạng với định danh cố
-           định; ngồi vào bàn là trang tự nhận một ghế trống và gọi
-           trực tiếp (WebRTC peer-to-peer) cho các ghế còn lại trong
-           bàn. Tiếng, hình, chat và "Cạn ly!" chỉ đi giữa các máy
-           cùng bàn; ngồi khác bàn không nghe/thấy nhau.
-         - Ngồi một mình vẫn xem trước được mic/camera của chính bạn.
+         Ngồi cùng bàn: 12 bàn × 4 ghế, WebRTC qua PeerJS.
+         Máy chủ bắt tay chỉ giúp các máy gặp nhau. Tiếng, hình và
+         chat đi trực tiếp giữa những người đang ngồi đúng bàn đó.
          ============================================================ */
-
-      var TABLES = [
-        { n: 1, name: "Bàn Quầy Bar",   code: "NHAU-01" },
-        { n: 2, name: "Bàn Cây Đa",     code: "NHAU-02" },
-        { n: 3, name: "Bàn Bờ Sông",    code: "NHAU-03" },
-        { n: 4, name: "Bàn Phòng Riêng", code: "NHAU-04" }
+      let myId = rid(9);
+      let myTable = 0;
+      let localStream = null;
+      let micOn = true, camOn = true;
+      let audioCtx = null;
+      let peers = {};
+      let myPeer = null;
+      let mySlot = 0;
+      let peerLibLoading = null;
+      const ICE_SERVERS = [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
       ];
-      var SEATS = 6;
+      const PEER_SOURCES = [
+        "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js",
+        "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
+        "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"
+      ];
 
       function rid(len) {
-        var c = "abcdefghjkmnpqrstuvwxyz23456789", s = "";
-        for (var i = 0; i < (len || 9); i++) s += c[Math.floor(Math.random() * c.length)];
+        const c = "abcdefghjkmnpqrstuvwxyz23456789";
+        let s = "";
+        for (let i = 0; i < (len || 9); i++) s += c[Math.floor(Math.random() * c.length)];
         return s;
       }
       function esc(s) {
-        return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
-          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
-        });
+        return String(s == null ? "" : s).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
       }
-
-      var myId = rid(9);
-      var myTable = 0;            // 0 = sảnh
-      var localStream = null;
-      var micOn = true, camOn = true;
-      var audioCtx = null;
-
-      var $ = function (id) { return document.getElementById(id); };
-
       function toast(msg, ms) {
-        var t = $("toast");
+        const t = $("toast");
         t.textContent = msg;
         t.classList.add("show");
         clearTimeout(t._h);
-        t._h = setTimeout(function () { t.classList.remove("show"); }, ms || 3400);
+        t._h = setTimeout(() => t.classList.remove("show"), ms || 3400);
       }
       function myName() {
-        var v = $("nameInput").value.trim();
+        const v = $("nameInput").value.trim();
         return v ? v.slice(0, 24) : "Khách " + myId.slice(0, 4);
       }
-
-      /* ---------------- Lobby UI ---------------- */
-      function buildLobby() {
-        var wrap = $("tables");
-        wrap.innerHTML = "";
-        TABLES.forEach(function (t) {
-          var card = document.createElement("section");
-          card.className = "table-card";
-          var seats = "";
-          for (var i = 0; i < SEATS; i++) {
-            var ang = (Math.PI * 2 * i) / SEATS - Math.PI / 2;
-            var x = 64 + Math.cos(ang) * 51 - 13;
-            var y = 64 + Math.sin(ang) * 51 - 13;
-            seats += '<span class="seat-dot" data-seat="' + i + '" style="left:' + x + 'px;top:' + y + 'px"></span>';
-          }
-          card.innerHTML =
-            '<div class="table-visual">' + seats +
-              '<div class="table-top">BÀN<br>' + t.n + '</div>' +
-            '</div>' +
-            '<h2>' + esc(t.name) + '</h2>' +
-            '<div class="occupants" id="occ-' + t.n + '">Bàn đang trống</div>' +
-            '<button class="join-btn" type="button" data-join="' + t.n + '">Ngồi vào bàn</button>';
-          wrap.appendChild(card);
-        });
-        wrap.addEventListener("click", function (e) {
-          var b = e.target.closest("[data-join]");
-          if (b) joinTable(parseInt(b.getAttribute("data-join"), 10), b);
-        });
+      function setConn(state, text) {
+        const c = $("connStatus");
+        c.classList.toggle("on", state === "on");
+        c.classList.toggle("err", state === "err");
+        $("connText").textContent = text;
+      }
+      function peerIdFor(table, slot) { return "tamne-t" + table + "-ghe" + slot; }
+      function slotFromPeerId(pid) {
+        const m = /-ghe(\d+)/.exec(String(pid || ""));
+        return m ? parseInt(m[1], 10) : 0;
       }
 
-      function occupantList() {
-        var list = [{ name: myName(), me: true }];
-        Object.keys(peers).forEach(function (id) { list.push({ name: peers[id].name || "Khách", me: false }); });
-        return list;
-      }
-
-      function renderLobby() {
-        TABLES.forEach(function (t) {
-          var occ = $("occ-" + t.n);
-          if (!occ) return;
-          var seated = (myTable === t.n);
-          if (seated) {
-            var people = occupantList();
-            occ.innerHTML = "<b>" + people.length + "/" + SEATS + " người:</b> " +
-              people.map(function (p) { return esc(p.name) + (p.me ? " (bạn)" : ""); }).join(", ");
-          } else {
-            occ.textContent = "Bàn đang trống";
-          }
-          var card = occ.closest(".table-card");
-          if (card) {
-            var dots = card.querySelectorAll(".seat-dot");
-            var folks = seated ? occupantList() : [];
-            dots.forEach(function (d, i) {
-              var p = folks[i];
-              d.classList.toggle("full", !!p);
-              d.textContent = p ? (p.name.trim().charAt(0).toUpperCase() || "?") : "";
-              d.title = p ? p.name : "Ghế trống";
-            });
-            var btn = card.querySelector(".join-btn");
-            if (btn && myTable === 0) {
-              btn.disabled = false;
-              btn.textContent = "Ngồi vào bàn";
+      function refreshScreens() {
+        worldTables.forEach((t) => t.screens.forEach((s) => { s.visible = false; s.userData.tag.hidden = true; }));
+        if (myTable === 0 || !mySlot) return;
+        const table = worldTables[myTable - 1];
+        if (!table) return;
+        for (let slot = 1; slot <= SEATS; slot++) {
+          if (slot === mySlot) continue;
+          const peer = peers[slot];
+          const screen = table.screens[slot - 1];
+          if (!peer || !screen) continue;
+          screen.visible = true;
+          const name = peer.name || "Khách";
+          screen.userData.tag.textContent = name + (peer.micOn === false ? " · mic tắt" : "");
+          const face = screen.userData.face;
+          if (peer.remoteStream && peer.camOn !== false) {
+            const vid = screen.userData.video;
+            if (vid.srcObject !== peer.remoteStream) {
+              vid.srcObject = peer.remoteStream;
+              vid.muted = false;
+              vid.play().catch(() => {});
             }
+            if (face.material.map !== screen.userData.videoTex) {
+              face.material.map = screen.userData.videoTex;
+              face.material.needsUpdate = true;
+            }
+          } else {
+            if (screen.userData.avatarName !== name) {
+              if (screen.userData.avatarTex) screen.userData.avatarTex.dispose();
+              screen.userData.avatarTex = avatarTex(name);
+              screen.userData.avatarName = name;
+            }
+            face.material.map = screen.userData.avatarTex;
+            face.material.needsUpdate = true;
           }
-        });
+        }
       }
 
-      /* ---------------- Vào / rời bàn ---------------- */
-      function getMedia() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          return Promise.reject(new Error("nomedia"));
+      function updateSelf() {
+        const wrap = $("selfWrap");
+        const vid = $("selfVideo");
+        $("selfPh").textContent = (myName().trim().charAt(0) || "?").toUpperCase();
+        wrap.classList.toggle("cam-off", !localStream || !camOn);
+        if (localStream && vid.srcObject !== localStream) {
+          vid.srcObject = localStream;
+          vid.play().catch(() => {});
         }
-        return navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
-        }).catch(function () {
-          return navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-            .then(function (s) { camOn = false; return s; });
-        }).catch(function () {
-          micOn = false; camOn = false;
-          return null;
-        });
       }
 
       function enterRoom(n) {
         myTable = n;
         document.body.classList.add("in-room");
-        var t = TABLES[n - 1];
-        $("roomTitle").textContent = t.name;
-        var note = [];
-        if (!localStream) note.push("Bạn vào bàn ở chế độ chưa có mic/camera");
-        else if (!camOn) note.push("Không thấy camera — bạn bè chỉ nghe tiếng của bạn");
-        $("mediaNote").textContent = note.join("");
-        if (!localStream || !camOn) toast(note.join(""), 5000);
+        document.body.classList.toggle("chat-open", innerWidth > 980);
+        $("dockLobby").hidden = true;
+        $("dockRoom").hidden = false;
+        const info = tableInfo(n - 1);
+        $("roomTitle").textContent = info.name + " · " + info.zone;
+        $("blurb").textContent = "Đang ngồi " + info.name + " (" + info.zone + ") · 4 ghế";
         $("chatMsgs").innerHTML = "";
-        sysMsg("Bạn đã vào " + t.name + ". Bạn bè chỉ cần mở trang này và ngồi vào đúng bàn này là hai bên tự nghe và thấy nhau — không cần mã mời.");
-        buildTiles();
+        sysMsg("Bạn đã ngồi " + info.name + ". Bạn bè mở trang này và bấm đúng bàn là nghe thấy nhau.");
+        const note = !localStream ? "Bạn vào bàn ở chế độ chưa có mic/camera."
+          : !camOn ? "Không thấy camera — bạn bè chỉ nghe tiếng của bạn." : "";
+        if (note) toast(note, 4800);
+        updateSelf();
         syncControlButtons();
-        updateRoomCount();
-        renderLobby();
+        refreshScreens();
+        ring.visible = false;
+        if (worldTables[n - 1]) sitCamera(worldTables[n - 1], 1);
       }
 
-      function joinTable(n, btn) {
-        if (myTable !== 0) return;
-        if (btn) { btn.disabled = true; btn.textContent = "Đang xin mic & camera…"; }
-
-        getMedia().then(function (stream) {
+      function joinTable(n) {
+        if (myTable !== 0 || !sceneReady) return;
+        if (n < 1 || n > worldTables.length) return;
+        toast("Đang xin mic và camera…", 1800);
+        getMedia().then((stream) => {
           localStream = stream;
           enterRoom(n);
           connectToTable(n);
-          if (btn) { btn.disabled = false; btn.textContent = "Ngồi vào bàn"; }
-        }).catch(function () {
-          if (btn) { btn.disabled = false; btn.textContent = "Ngồi vào bàn"; }
-          toast("Không mở được mic/camera. Hãy cho phép quyền truy cập trong trình duyệt rồi thử lại.");
+        }).catch(() => {
+          toast("Không mở được mic/camera. Hãy cho phép quyền trong trình duyệt rồi thử lại.");
         });
       }
 
       function leaveTable(silent) {
         if (myTable === 0) return;
         broadcast({ kind: "bye" });
-        Object.keys(peers).forEach(function (id) {
+        Object.keys(peers).forEach((id) => {
           try { if (peers[id].conn) peers[id].conn.close(); } catch (e) {}
           try { if (peers[id].call) peers[id].call.close(); } catch (e) {}
         });
         peers = {};
         if (myPeer) { try { myPeer.destroy(); } catch (e) {} myPeer = null; mySlot = 0; }
-        if (localStream) { localStream.getTracks().forEach(function (tr) { tr.stop(); }); localStream = null; }
+        if (localStream) { localStream.getTracks().forEach((tr) => tr.stop()); localStream = null; }
         myTable = 0;
         document.body.classList.remove("in-room");
+        $("dockLobby").hidden = false;
+        $("dockRoom").hidden = true;
+        $("blurb").textContent = "12 bàn nhìn ra biển · bấm một bàn inox để ngồi";
         setConn("on", "Vào cùng bàn là nói chuyện được với bạn bè");
-        renderLobby();
-        if (!silent) toast("Bạn đã rời bàn, quay lại sảnh.");
+        refreshScreens();
+        ring.visible = false;
+        releaseCamera();
+        if (!silent) toast("Bạn đã rời bàn.");
       }
 
-      /* ---------------- Tiles ---------------- */
-      var ICON_MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="#ffb1a1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 10.3V6a3 3 0 0 0-5.9-.8"/><path d="M17 16.9A7 7 0 0 1 5 11M19 11a7 7 0 0 1-.1 1.2M12 19v3M2 2l20 20"/></svg>';
-
-      function tileEl(id, name, isLocal) {
-        var d = document.createElement("div");
-        d.className = "tile" + (isLocal ? " local" : "");
-        d.id = "tile-" + id;
-        d.innerHTML =
-          '<video autoplay playsinline ' + (isLocal ? "muted" : "") + '></video>' +
-          '<div class="camoff"><div class="avatar">' + esc((name || "?").trim().charAt(0).toUpperCase() || "?") + '</div><span>' + esc(name) + '</span></div>' +
-          '<div class="badge mic-badge">' + ICON_MIC_OFF + '</div>' +
-          '<div class="tag"><span class="nm">' + esc(name) + (isLocal ? " (bạn)" : "") + '</span></div>';
-        return d;
+      function getMedia() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(new Error("nomedia"));
+        return navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+        }).catch(() => navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((s) => { camOn = false; return s; }))
+          .catch(() => { micOn = false; camOn = false; return null; });
       }
 
-      function buildTiles() {
-        var wrap = $("videos");
-        wrap.innerHTML = "";
-        var mine = tileEl("me", myName(), true);
-        wrap.appendChild(mine);
-        var lv = mine.querySelector("video");
-        if (localStream) { lv.srcObject = localStream; if (lv.play) lv.play().catch(function () {}); }
-        mine.classList.toggle("cam-off", !camOn || !localStream);
-        mine.querySelector(".badge").classList.toggle("show", !micOn);
-        var used = 1;
-        Object.keys(peers).forEach(function (id) {
-          var p = peers[id];
-          var el = tileEl(id, p.name || "Khách", false);
-          wrap.appendChild(el);
-          var rv = el.querySelector("video");
-          if (p.remoteStream) { rv.srcObject = p.remoteStream; if (rv.play) rv.play().catch(function () {}); }
-          el.classList.toggle("cam-off", !p.remoteStream || p.camOn === false);
-          el.querySelector(".badge").classList.toggle("show", p.micOn === false);
-          used++;
-        });
-        for (var i = used; i < SEATS; i++) {
-          var e = document.createElement("div");
-          e.className = "tile empty";
-          e.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="5" y="3" width="14" height="7" rx="2"/><path d="M7 10v11M17 10v11M7 15h10"/></svg><span>Ghế trống</span>';
-          wrap.appendChild(e);
-        }
-      }
-
-      function updateRoomCount() {
-        if (myTable === 0) return;
-        $("roomCount").textContent = (1 + Object.keys(peers).length) + "/" + SEATS + " người";
-      }
-
-      /* ---------------- Controls ---------------- */
       function syncControlButtons() {
-        var bm = $("btnMic"), bc = $("btnCam");
-        bm.classList.toggle("off", !micOn);
-        bm.querySelector("span").textContent = micOn ? "Mic đang bật" : "Mic đang tắt";
-        bc.classList.toggle("off", !camOn);
-        bc.querySelector("span").textContent = camOn ? "Camera đang bật" : "Camera đang tắt";
+        $("btnMic").classList.toggle("off", !micOn);
+        $("btnMic").textContent = micOn ? "Mic đang bật" : "Mic đang tắt";
+        $("btnCam").classList.toggle("off", !camOn);
+        $("btnCam").textContent = camOn ? "Camera đang bật" : "Camera đang tắt";
       }
-      $("btnMic").addEventListener("click", function () {
+      $("btnMic").addEventListener("click", () => {
         micOn = !micOn;
-        if (localStream) localStream.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
+        if (localStream) localStream.getAudioTracks().forEach((t) => { t.enabled = micOn; });
         syncControlButtons();
-        var mine = $("tile-me");
-        if (mine) mine.querySelector(".badge").classList.toggle("show", !micOn);
+        refreshScreens();
         broadcast({ kind: "state", mic: micOn, cam: camOn });
       });
-      $("btnCam").addEventListener("click", function () {
+      $("btnCam").addEventListener("click", () => {
         camOn = !camOn;
-        if (localStream) localStream.getVideoTracks().forEach(function (t) { t.enabled = camOn; });
+        if (localStream) localStream.getVideoTracks().forEach((t) => { t.enabled = camOn; });
         syncControlButtons();
-        var mine = $("tile-me");
-        if (mine) mine.classList.toggle("cam-off", !camOn);
+        updateSelf();
         broadcast({ kind: "state", mic: micOn, cam: camOn });
       });
-      $("btnLeave").addEventListener("click", function () { leaveTable(false); });
-      $("btnCheers").addEventListener("click", function () {
+      $("btnLeave").addEventListener("click", () => leaveTable(false));
+      $("btnChat").addEventListener("click", () => document.body.classList.toggle("chat-open"));
+      $("btnCheers").addEventListener("click", () => {
         if (myTable === 0) return;
         onChat({ kind: "cheers", from: myId, name: myName() });
         broadcast({ kind: "cheers" });
       });
 
-      /* ---------------- Chat (trong bàn, gửi qua kết nối trực tiếp) ---------------- */
       function sysMsg(text) {
-        var box = $("chatMsgs");
-        var d = document.createElement("div");
+        const box = $("chatMsgs");
+        const d = document.createElement("div");
         d.className = "msg sys";
         d.textContent = text;
         box.appendChild(d);
@@ -709,9 +831,9 @@
       }
       function onChat(cm) {
         if (!cm) return;
-        var box = $("chatMsgs");
+        const box = $("chatMsgs");
         if (cm.kind === "cheers") {
-          var d = document.createElement("div");
+          const d = document.createElement("div");
           d.className = "msg cheers-msg";
           d.textContent = (cm.from === myId ? "Bạn" : (cm.name || "Ai đó")) + " hô: DZÔ!";
           box.appendChild(d);
@@ -720,149 +842,113 @@
           return;
         }
         if (cm.kind === "msg" && cm.text) {
-          var m = document.createElement("div");
+          const m = document.createElement("div");
           m.className = "msg" + (cm.from === myId ? " me" : "");
-          m.innerHTML = '<span class="who">' + esc(cm.from === myId ? "Bạn" : (cm.name || "Khách")) + ':</span> ' + esc(cm.text);
+          m.innerHTML = '<span class="who">' + esc(cm.from === myId ? "Bạn" : (cm.name || "Khách")) + ":</span> " + esc(cm.text);
           box.appendChild(m);
           box.scrollTop = box.scrollHeight;
         }
       }
-      $("chatForm").addEventListener("submit", function (e) {
+      $("chatForm").addEventListener("submit", (e) => {
         e.preventDefault();
-        var v = $("chatInput").value.trim();
+        const v = $("chatInput").value.trim();
         if (!v || myTable === 0) return;
         onChat({ kind: "msg", from: myId, name: myName(), text: v.slice(0, 300) });
         broadcast({ kind: "msg", text: v.slice(0, 300) });
         $("chatInput").value = "";
       });
 
-      /* ---------------- Cheers FX ---------------- */
-      var cheersTimer = null;
+      let cheersTimer = null;
       function showCheers(who) {
-        var fx = $("cheersFx");
+        const fx = $("cheersFx");
         $("cheersWho").textContent = who + " mời cả bàn cạn ly";
         fx.classList.remove("show");
         void fx.offsetWidth;
         fx.classList.add("show");
+        cheerLeft = 1;
         clinkSound();
         clearTimeout(cheersTimer);
-        cheersTimer = setTimeout(function () { fx.classList.remove("show"); }, 2300);
+        cheersTimer = setTimeout(() => fx.classList.remove("show"), 2300);
       }
       function clinkSound() {
         try {
           if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           if (audioCtx.state === "suspended") audioCtx.resume();
-          var t = audioCtx.currentTime;
-          [5232, 4186].forEach(function (f, i) {
-            var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          const t = audioCtx.currentTime;
+          [880, 1174].forEach((f, i) => {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
             o.type = "sine"; o.frequency.value = f;
-            g.gain.setValueAtTime(0.0001, t + i * 0.09);
-            g.gain.exponentialRampToValueAtTime(0.12, t + i * 0.09 + 0.012);
-            g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.09 + 0.28);
+            g.gain.setValueAtTime(0.0001, t + i * 0.08);
+            g.gain.exponentialRampToValueAtTime(0.08, t + i * 0.08 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.08 + 0.28);
             o.connect(g); g.connect(audioCtx.destination);
-            o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.3);
+            o.start(t + i * 0.08); o.stop(t + i * 0.08 + 0.3);
           });
         } catch (e) {}
       }
 
-      /* ---------------- Kết nối cùng bàn (WebRTC qua PeerJS) ----------------
-         Không còn mã mời: ai ngồi vào cùng một bàn sẽ tự tìm thấy nhau.
-         Mỗi bàn có 6 "ghế mạng" với định danh cố định theo bàn + số ghế;
-         vào bàn thì nhận một ghế còn trống rồi gọi thẳng cho các ghế
-         còn lại trong bàn. Máy chủ bắt tay công cộng của PeerJS chỉ
-         giúp các máy gặp nhau lúc đầu; tiếng, hình, chat và "Cạn ly!"
-         sau đó đi trực tiếp giữa các máy cùng bàn (peer-to-peer).
-         STUN chỉ giúp hai máy tìm đường tới nhau, không lưu dữ liệu. */
-      var peers = {};        // slot -> { slot, name, conn, call, remoteStream, micOn, camOn }
-      var myPeer = null;
-      var mySlot = 0;
-      var peerLibLoading = null;
-      var ICE_SERVERS = [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" }
-      ];
-      var PEER_SOURCES = [
-        "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js",
-        "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
-        "https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"
-      ];
-
-      function peerIdFor(table, slot) { return "quannhau-t" + table + "-ghe" + slot; }
-      function slotFromPeerId(pid) {
-        var m = /-ghe(\d+)/.exec(String(pid || ""));
-        return m ? parseInt(m[1], 10) : 0;
-      }
-      function setConn(state, text) {
-        var c = $("connStatus");
-        if (!c) return;
-        c.classList.toggle("on", state === "on");
-        c.classList.toggle("err", state === "err");
-        $("connText").textContent = text;
-      }
       function refreshConnText() {
         if (myTable === 0) return;
-        var n = Object.keys(peers).length;
+        const n = Object.keys(peers).length;
         if (n > 0) setConn("on", "Đang nói chuyện với " + n + " bạn cùng bàn");
         else setConn("", "Đã ngồi vào bàn — đang chờ bạn vào cùng bàn…");
       }
       function loadPeerLib() {
         if (typeof Peer !== "undefined") return Promise.resolve(true);
         if (peerLibLoading) return peerLibLoading;
-        peerLibLoading = new Promise(function (resolve) {
-          var i = 0;
-          function next() {
+        peerLibLoading = new Promise((resolve) => {
+          let i = 0;
+          const next = () => {
             if (typeof Peer !== "undefined") return resolve(true);
             if (i >= PEER_SOURCES.length) return resolve(false);
-            var s = document.createElement("script");
+            const s = document.createElement("script");
             s.src = PEER_SOURCES[i++];
             s.async = true;
-            s.onload = function () { if (typeof Peer !== "undefined") resolve(true); else next(); };
-            s.onerror = function () { next(); };
+            s.onload = () => { if (typeof Peer !== "undefined") resolve(true); else next(); };
+            s.onerror = () => next();
             document.head.appendChild(s);
-          }
+          };
           next();
         });
         return peerLibLoading;
       }
-
       function connectToTable(n) {
         setConn("", "Đang tải thư viện kết nối…");
-        loadPeerLib().then(function (ok) {
-          if (myTable !== n) return; // đã rời bàn trong lúc tải
+        loadPeerLib().then((ok) => {
+          if (myTable !== n) return;
           if (!ok) {
             setConn("err", "Không tải được thư viện kết nối — thử rời bàn rồi vào lại");
-            toast("Không tải được thư viện kết nối nên chưa gặp được bạn cùng bàn. Kiểm tra mạng rồi vào lại bàn nhé.", 5200);
+            toast("Không tải được thư viện kết nối. Kiểm tra mạng rồi vào lại bàn.", 5200);
+            if (worldTables[n - 1]) sitCamera(worldTables[n - 1], 1);
             return;
           }
           setConn("", "Đang tìm ghế trống trong bàn…");
           claimNext(n, 1, false);
         });
       }
-
       function claimNext(n, slot, sawTaken) {
         if (myTable !== n) return;
         if (slot > SEATS) {
           if (sawTaken) {
-            toast("Bàn đã đủ 6 người rồi — chọn bàn khác nhé.", 4600);
+            toast("Bàn đã đủ 4 người — chọn bàn khác.", 4600);
             leaveTable(true);
-            setConn("on", "Vào cùng bàn là nói chuyện được với bạn bè");
           } else {
             setConn("err", "Không nối được tới máy chủ bắt tay — kiểm tra mạng rồi thử lại");
-            toast("Chưa nối được tới máy chủ bắt tay để tìm bạn cùng bàn. Bạn vẫn ngồi tại bàn; rời bàn rồi vào lại để thử lại nhé.", 5600);
+            toast("Chưa nối được máy chủ bắt tay. Rời bàn rồi vào lại nhé.", 5200);
           }
           return;
         }
-        var p;
+        let p;
         try { p = new Peer(peerIdFor(n, slot), { config: { iceServers: ICE_SERVERS } }); }
         catch (e) { claimNext(n, slot + 1, sawTaken); return; }
-        var opened = false, settled = false;
-        var to = setTimeout(function () {
+        let opened = false, settled = false;
+        const to = setTimeout(() => {
           if (settled || opened) return;
           settled = true;
           try { p.destroy(); } catch (e) {}
           claimNext(n, slot + 1, sawTaken);
         }, 7000);
-        p.on("open", function () {
+        p.on("open", () => {
           opened = true;
           clearTimeout(to);
           if (myTable !== n) { try { p.destroy(); } catch (e) {} return; }
@@ -870,128 +956,111 @@
           mySlot = slot;
           wireMyPeer(n);
           refreshConnText();
-          for (var o = 1; o <= SEATS; o++) { if (o !== slot) callSlot(n, o); }
+          refreshScreens();
+          const table = worldTables[n - 1];
+          if (table) sitCamera(table, slot);
+          for (let o = 1; o <= SEATS; o++) if (o !== slot) callSlot(n, o);
         });
-        p.on("error", function (err) {
-          var type = err && err.type;
+        p.on("error", (err) => {
+          const type = err && err.type;
           if (!opened) {
             if (settled) return;
-            if (type === "unavailable-id" || type === "network" || type === "server-error" ||
-                type === "socket-error" || type === "socket-closed" || type === "invalid-id") {
+            if (type === "unavailable-id" || type === "network" || type === "server-error" || type === "socket-error" || type === "socket-closed" || type === "invalid-id") {
               settled = true;
               clearTimeout(to);
               try { p.destroy(); } catch (e) {}
               claimNext(n, slot + 1, sawTaken || type === "unavailable-id");
             }
-          } else {
-            handlePeerError(err);
-          }
+          } else handlePeerError(err);
         });
       }
-
       function wireMyPeer(n) {
-        myPeer.on("connection", function (conn) {
-          var slot = slotFromPeerId(conn.peer);
+        myPeer.on("connection", (conn) => {
+          const slot = slotFromPeerId(conn.peer);
           if (!slot || slot === mySlot || myTable !== n) return;
           wireConn(slot, conn);
         });
-        myPeer.on("call", function (call) {
-          var slot = slotFromPeerId(call.peer);
+        myPeer.on("call", (call) => {
+          const slot = slotFromPeerId(call.peer);
           if (!slot || slot === mySlot || myTable !== n) { try { call.close(); } catch (e) {} return; }
           try { if (localStream) call.answer(localStream); else call.answer(); }
           catch (e) { try { call.answer(); } catch (e2) {} }
           attachCall(slot, call);
         });
-        myPeer.on("disconnected", function () {
+        myPeer.on("disconnected", () => {
           if (myTable === 0) return;
           setConn("err", "Mất nối tới máy chủ bắt tay — đang tự nối lại…");
           try { myPeer.reconnect(); } catch (e) {}
         });
       }
-
       function handlePeerError(err) {
         if (!err) return;
-        if (err.type === "peer-unavailable") {
-          // Ghế đó đang trống — chuyện thường khi gọi thử các ghế còn lại.
-          return;
-        }
+        if (err.type === "peer-unavailable") return;
         if (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed") {
           if (myTable > 0) setConn("err", "Mất nối tới máy chủ bắt tay — các máy đã nối vẫn nói chuyện bình thường");
         }
       }
-
       function getEntry(slot) {
-        if (!peers[slot]) {
-          peers[slot] = { slot: slot, name: "Khách", conn: null, call: null, remoteStream: null, micOn: true, camOn: true };
-        }
+        if (!peers[slot]) peers[slot] = { slot, name: "Khách", conn: null, call: null, remoteStream: null, micOn: true, camOn: true };
         return peers[slot];
       }
-
       function callSlot(n, slot) {
         if (!myPeer) return;
-        var conn = null;
+        let conn = null;
         try { conn = myPeer.connect(peerIdFor(n, slot), { reliable: true }); } catch (e) {}
         if (conn) wireConn(slot, conn);
         if (localStream) {
-          var call = null;
+          let call = null;
           try { call = myPeer.call(peerIdFor(n, slot), localStream); } catch (e) {}
           if (call) attachCall(slot, call);
         }
       }
-
       function attachCall(slot, call) {
-        call.on("stream", function (rs) {
-          var entry = getEntry(slot);
+        call.on("stream", (rs) => {
+          const entry = getEntry(slot);
           if (entry.call && entry.call !== call) { try { entry.call.close(); } catch (e) {} }
           entry.call = call;
           entry.remoteStream = rs;
-          if (myTable > 0) buildTiles();
+          refreshScreens();
         });
-        call.on("close", function () {
-          var entry = peers[slot];
+        call.on("close", () => {
+          const entry = peers[slot];
           if (entry && entry.call === call) { entry.call = null; entry.remoteStream = null; }
-          if (myTable > 0) buildTiles();
+          refreshScreens();
         });
-        call.on("error", function () {});
+        call.on("error", () => {});
       }
-
       function wireConn(slot, conn) {
-        conn.on("open", function () {
-          var entry = getEntry(slot);
-          if (entry.conn && entry.conn !== conn && entry.conn.open) {
-            try { conn.close(); } catch (e) {}
-            return;
-          }
+        conn.on("open", () => {
+          const entry = getEntry(slot);
+          if (entry.conn && entry.conn !== conn && entry.conn.open) { try { conn.close(); } catch (e) {} return; }
           entry.conn = conn;
           sendTo(entry, { kind: "hello", name: myName(), mic: micOn, cam: camOn });
-          // Người mới vào mà không gọi được (ví dụ họ không có mic/camera)
-          // thì phía đã ngồi sẵn chủ động gọi sang để họ vẫn thấy được bàn.
           if (localStream && myPeer && !entry.callTried) {
             entry.callTried = true;
-            var c2 = null;
+            let c2 = null;
             try { c2 = myPeer.call(conn.peer, localStream); } catch (e) {}
             if (c2) attachCall(slot, c2);
           }
-          if (myTable > 0) { buildTiles(); updateRoomCount(); renderLobby(); refreshConnText(); }
+          refreshScreens();
+          refreshConnText();
         });
-        conn.on("data", function (data) { handleData(slot, data); });
-        conn.on("close", function () { removePeer(slot, true); });
-        conn.on("error", function () {});
+        conn.on("data", (data) => handleData(slot, data));
+        conn.on("close", () => removePeer(slot, true));
+        conn.on("error", () => {});
       }
-
       function handleData(slot, m) {
         if (!m || typeof m !== "object") return;
-        var entry = getEntry(slot);
+        const entry = getEntry(slot);
         if (m.kind === "hello") {
-          var isNew = !entry.greeted;
+          const isNew = !entry.greeted;
           entry.name = String(m.name || "Khách").slice(0, 24);
           entry.micOn = m.mic !== false;
           entry.camOn = m.cam !== false;
           entry.greeted = true;
-          if (myTable > 0) {
-            if (isNew) { sysMsg(entry.name + " đã vào bàn."); toast(entry.name + " đã vào bàn."); }
-            buildTiles(); updateRoomCount(); renderLobby(); refreshConnText();
-          }
+          if (isNew) { sysMsg(entry.name + " đã vào bàn."); toast(entry.name + " đã vào bàn."); }
+          refreshScreens();
+          refreshConnText();
         } else if (m.kind === "msg" && m.text) {
           onChat({ kind: "msg", from: "s" + slot, name: entry.name, text: String(m.text).slice(0, 300) });
         } else if (m.kind === "cheers") {
@@ -999,44 +1068,35 @@
         } else if (m.kind === "state") {
           entry.micOn = m.mic !== false;
           entry.camOn = m.cam !== false;
-          if (myTable > 0) buildTiles();
-        } else if (m.kind === "bye") {
-          removePeer(slot, true);
-        }
+          refreshScreens();
+        } else if (m.kind === "bye") removePeer(slot, true);
       }
-
       function sendTo(entry, obj) {
         try { if (entry.conn && entry.conn.open) entry.conn.send(obj); } catch (e) {}
       }
       function broadcast(obj) {
-        Object.keys(peers).forEach(function (id) { sendTo(peers[id], obj); });
+        Object.keys(peers).forEach((id) => sendTo(peers[id], obj));
       }
       function removePeer(slot, announce) {
-        var entry = peers[slot];
+        const entry = peers[slot];
         if (!entry) return;
         delete peers[slot];
         try { if (entry.conn) entry.conn.close(); } catch (e) {}
         try { if (entry.call) entry.call.close(); } catch (e) {}
         if (myTable > 0) {
-          if (announce && entry.greeted) { sysMsg(entry.name + " đã rời bàn."); toast(entry.name + " đã rời bàn / mất kết nối."); }
-          buildTiles(); updateRoomCount(); renderLobby(); refreshConnText();
+          if (announce && entry.greeted) { sysMsg(entry.name + " đã rời bàn."); toast(entry.name + " đã rời bàn."); }
+          refreshScreens();
+          refreshConnText();
         }
       }
 
-      /* ---------------- Misc ---------------- */
-      $("nameInput").addEventListener("change", function () {
-        renderLobby();
-        if (myTable > 0) {
-          buildTiles();
-          broadcast({ kind: "hello", name: myName(), mic: micOn, cam: camOn });
-        }
+      $("nameInput").addEventListener("change", () => {
+        updateSelf();
+        if (myTable > 0) broadcast({ kind: "hello", name: myName(), mic: micOn, cam: camOn });
       });
-      window.addEventListener("beforeunload", function () {
-        if (localStream) localStream.getTracks().forEach(function (tr) { tr.stop(); });
+      addEventListener("beforeunload", () => {
+        if (localStream) localStream.getTracks().forEach((tr) => tr.stop());
       });
-
-      buildLobby();
-      renderLobby();
     </script>
   </body>
 </html>
