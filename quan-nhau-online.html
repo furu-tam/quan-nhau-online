@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
-    <title>Tâm nè</title>
+    <title>furu Bar</title>
     <link rel="icon" href="data:," />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -150,6 +150,55 @@
         background: rgba(13, 27, 42, 0.55); font-weight: 800; text-align: center; padding: 24px;
       }
       #err { display: none; }
+
+      #djHud {
+        position: fixed; z-index: 7;
+        top: 168px; left: max(14px, env(safe-area-inset-left));
+        width: min(420px, calc(100vw - 28px));
+        padding: 10px; border-radius: 14px;
+        background: var(--plate); border: 1px solid var(--line); backdrop-filter: blur(8px);
+      }
+      #djHud .dj-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+      #djHud .dj-head b { color: var(--sun); font-size: 14px; }
+      #djHud .dj-head span { color: var(--ink-dim); font-size: 12px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #djForm { display: flex; gap: 8px; }
+      #djForm input {
+        flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px;
+        background: rgba(8, 16, 28, 0.65); color: var(--ink); padding: 8px 10px; font-size: 13px;
+      }
+      #djForm button, .dj-actions button {
+        border: none; border-radius: 10px; background: var(--sun); color: #1a1208; font-weight: 800; padding: 8px 10px; font-size: 13px;
+      }
+      .dj-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+      .dj-actions button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+      #djPlayer { margin-bottom: 8px; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 16 / 9; }
+      #djPlayer[hidden] { display: none !important; }
+      #djPlayer .dj-frame, #djPlayer iframe, #djPlayer video { width: 100%; height: 100%; border: 0; display: block; background: #000; }
+      #djPlayer .web-fallback { padding: 12px; color: var(--ink); font-size: 13px; }
+      #djPlayer .web-fallback a { color: var(--sun); }
+      #djHud.player-away #djPlayer { display: none; }
+      .dj-slot #djPlayer { aspect-ratio: auto; width: 100%; height: 100%; margin: 0; border-radius: 0; }
+      .dj-wall:has(#djPlayer) .brand { display: none; }
+      .dj-wall:has(#djPlayer) .dj-slot { position: absolute; inset: 0; }
+      .dj-wall {
+        width: 960px; height: 416px; box-sizing: border-box;
+        background: #07060f; color: #fdf3e2; border: 10px solid #140c08;
+        display: flex; flex-direction: column; overflow: hidden;
+        font-family: "Be Vietnam Pro", sans-serif;
+      }
+      .dj-wall .brand {
+        padding: 10px 16px 0; font-weight: 900; font-size: 28px; color: #ffa53d;
+      }
+      .dj-slot { flex: 1; min-height: 0; }
+      .dj-slot .dj-frame, .dj-slot iframe, .dj-slot video { width: 100%; height: 100%; border: 0; display: block; background: #000; }
+      .dj-caption {
+        flex: 1; display: flex; align-items: center; justify-content: center; text-align: center;
+        padding: 16px 28px; font-size: 34px; font-weight: 800; line-height: 1.35;
+      }
+      .dj-caption[hidden] { display: none !important; }
+      #css3d { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+      #css3d, #css3d * { pointer-events: none; }
+      #css3d .dj-wall, #css3d .dj-wall * { pointer-events: auto; }
       @media (max-width: 720px) {
         .chat { top: auto; bottom: 70px; height: min(46vh, 360px); }
         #selfWrap { width: 84px; height: 112px; }
@@ -157,11 +206,11 @@
     </style>
   </head>
   <body>
-    <canvas id="stage" aria-label="Quán Tâm nè, sàn gỗ nhìn ra biển. Bấm một bàn để ngồi và nói chuyện."></canvas>
+    <canvas id="stage" aria-label="furu Bar, sàn gỗ nhìn ra biển. Bấm một bàn để ngồi. Sân khấu DJ chiếu link cho cả quán."></canvas>
     <div id="labels"></div>
 
     <div class="plate">
-      <h1>Tâm nè</h1>
+      <h1>furu Bar</h1>
       <p class="sub" id="blurb">12 bàn nhìn ra biển · bấm một bàn inox để ngồi</p>
       <div class="row">
         <label for="nameInput">Tên</label>
@@ -202,7 +251,20 @@
       <div class="who-cheers" id="cheersWho"></div>
     </div>
     <div id="toast" role="status"></div>
-    <div id="boot">Đang dựng quán Tâm nè…</div>
+    <section id="djHud" aria-label="Sân khấu DJ">
+      <div class="dj-head"><b>Sân khấu DJ</b><span id="djStatus">Chưa chiếu</span></div>
+      <div id="djPlayer" hidden></div>
+      <form id="djForm">
+        <input id="djInput" type="url" inputmode="url" placeholder="Link YouTube, Spotify, SoundCloud hoặc video" autocomplete="off" />
+        <button type="submit">Phát cả quán</button>
+      </form>
+      <div class="dj-actions">
+        <button type="button" id="djBig" class="ghost" hidden>Xem lớn</button>
+        <button type="button" id="djWall" class="ghost" hidden>Đưa lên sân khấu</button>
+        <button type="button" id="djStop" class="ghost" hidden>Tắt</button>
+      </div>
+    </section>
+    <div id="boot">Đang dựng furu Bar…</div>
     <p id="err" hidden>Trình duyệt này không mở được quán 3D.</p>
 
     <script type="importmap">
@@ -215,6 +277,7 @@
       import * as THREE from "three";
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { CSS3DRenderer, CSS3DObject } from "three/addons/renderers/CSS3DRenderer.js";
 
       const SEATS = 4;
       const ZONES = ["sát biển", "giữa sân", "gần quầy"];
@@ -290,6 +353,26 @@
       ring.visible = false;
       scene.add(ring);
 
+      const cssRenderer = new CSS3DRenderer();
+      cssRenderer.domElement.id = "css3d";
+      document.body.appendChild(cssRenderer.domElement);
+      const wallEl = document.createElement("div");
+      wallEl.className = "dj-wall";
+      wallEl.innerHTML = '<div class="brand">furu Bar</div><div class="dj-slot" id="djSlot"></div><div class="dj-caption" id="djCaption">Sân khấu đang trống.<br>Dán link để cả quán cùng xem.</div>';
+      const djObj = new CSS3DObject(wallEl);
+      djObj.position.set(7.8, 3.0, 3.45);
+      djObj.rotation.y = Math.PI;
+      djObj.scale.set(0.00625, 0.00625, 0.00625);
+      scene.add(djObj);
+      function alignDjScreen() {
+        const wall = root && root.getObjectByName("led_wall");
+        if (!wall) return;
+        wall.getWorldPosition(djObj.position);
+        wall.getWorldQuaternion(djObj.quaternion);
+        const n = new THREE.Vector3(0, 0, 1).applyQuaternion(djObj.quaternion);
+        djObj.position.addScaledVector(n, 0.08);
+      }
+
       const _v = new THREE.Vector3();
       const labelsEl = $("labels");
 
@@ -329,8 +412,8 @@
       }
       function retitleSigns() {
         if (!root) return;
-        const neonTex = makeNeon("Tâm nè");
-        const barTex = makeBar("Tâm nè");
+        const neonTex = makeNeon("furu Bar");
+        const barTex = makeBar("furu Bar");
         root.traverse((o) => {
           if (!o.isMesh) return;
           o.getWorldPosition(_v);
@@ -454,6 +537,7 @@
           gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
         }
         sceneReady = true;
+        alignDjScreen();
         $("boot").hidden = true;
         renderLabels();
       }, undefined, () => {
@@ -588,6 +672,7 @@
       function resize() {
         const w = innerWidth, h = innerHeight;
         renderer.setSize(w, h, false);
+        cssRenderer.setSize(w, h);
         persp.aspect = w / h;
         persp.updateProjectionMatrix();
         fitOrtho();
@@ -620,8 +705,10 @@
           glasses.forEach((g) => g.scale.setScalar(cheerLeft > 0 ? s : 1));
         }
         if (camera === persp && tween.k >= 1) controls.update();
+        djObj.visible = mode !== "vplan";
         renderLabels();
         renderer.render(scene, camera);
+        if (djObj.visible) cssRenderer.render(scene, camera);
       });
 
       /* ============================================================
@@ -1089,6 +1176,264 @@
           refreshConnText();
         }
       }
+
+      /* ---------- Sân khấu: một link, cả quán cùng xem ---------- */
+      const VENUE_ID = "furubar-stage";
+      let venueGen = 0;
+      let venuePeer = null;
+      let venueHost = false;
+      let venueLink = null;
+      let venueConns = [];
+      let nowPlaying = null;
+      let shownKey = "";
+      let pendingVenue = null;
+
+      function elapsedSec(media) {
+        if (!media || !media.startedAt) return 0;
+        return Math.max(0, (Date.now() - media.startedAt) / 1000);
+      }
+      function parseLink(raw) {
+        const text = String(raw || "").trim();
+        if (!text) return null;
+        let u;
+        try { u = new URL(text); } catch (e) { return null; }
+        if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+        const host = u.hostname.toLowerCase().replace(/^www\./, "");
+        const path = u.pathname;
+        const pack = (type, extra) => Object.assign({ type, url: text, label: (extra && extra.label) || text }, extra || {});
+        if (host === "youtu.be") {
+          const id = path.split("/").filter(Boolean)[0];
+          if (id) return pack("youtube", { id, label: "YouTube" });
+        }
+        if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com" || host === "youtube-nocookie.com") {
+          const v = u.searchParams.get("v");
+          if (v) return pack("youtube", { id: v, label: "YouTube" });
+          const m = path.match(/\/(embed|shorts|live)\/([^/?]+)/);
+          if (m) return pack("youtube", { id: m[2], label: "YouTube" });
+          const list = u.searchParams.get("list");
+          if (list) return pack("youtube", { id: list, list: true, label: "Playlist YouTube" });
+        }
+        if (host === "open.spotify.com") {
+          const m = path.match(/\/(track|album|playlist|episode|show)\/([A-Za-z0-9]+)/);
+          if (m) return pack("spotify", { spotifyKind: m[1], id: m[2], label: "Spotify" });
+        }
+        if (host === "soundcloud.com" || host === "m.soundcloud.com" || host === "on.soundcloud.com") {
+          return pack("soundcloud", { label: "SoundCloud" });
+        }
+        if (host === "vimeo.com" || host === "player.vimeo.com") {
+          const m = path.match(/\/(\d+)/);
+          if (m) return pack("vimeo", { id: m[1], label: "Vimeo" });
+        }
+        if (/\.(mp4|webm|ogv|ogg)(\?|$)/i.test(path)) return pack("file", { label: "Video" });
+        return pack("web", { label: host });
+      }
+      function buildPlayer(media) {
+        const sec = Math.floor(elapsedSec(media));
+        const frame = document.createElement("div");
+        frame.className = "dj-frame";
+        if (media.type === "file") {
+          const video = document.createElement("video");
+          video.src = media.url;
+          video.controls = true;
+          video.autoplay = true;
+          video.loop = true;
+          video.playsInline = true;
+          video.addEventListener("loadedmetadata", () => {
+            if (sec > 0 && sec < (video.duration || sec + 1)) video.currentTime = sec;
+            video.play().catch(() => {});
+          });
+          frame.appendChild(video);
+          return frame;
+        }
+        const iframe = document.createElement("iframe");
+        iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        iframe.allowFullscreen = true;
+        iframe.title = media.label || "Sân khấu";
+        if (media.type === "youtube" && media.id) {
+          iframe.src = media.list
+            ? "https://www.youtube-nocookie.com/embed/videoseries?list=" + encodeURIComponent(media.id) + "&autoplay=1&rel=0"
+            : "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(media.id) + "?autoplay=1&rel=0&modestbranding=1&loop=1&playlist=" + encodeURIComponent(media.id) + "&start=" + sec;
+        } else if (media.type === "spotify" && media.id) {
+          iframe.src = "https://open.spotify.com/embed/" + media.spotifyKind + "/" + encodeURIComponent(media.id);
+        } else if (media.type === "soundcloud") {
+          iframe.src = "https://w.soundcloud.com/player/?url=" + encodeURIComponent(media.url) + "&auto_play=true&hide_related=true&show_comments=false&visual=true";
+        } else if (media.type === "vimeo" && media.id) {
+          iframe.src = "https://player.vimeo.com/video/" + encodeURIComponent(media.id) + "?autoplay=1#t=" + sec + "s";
+        } else {
+          iframe.src = media.url;
+        }
+        frame.appendChild(iframe);
+        if (media.type === "web") {
+          const note = document.createElement("div");
+          note.className = "web-fallback";
+          note.innerHTML = 'Nếu trang không hiện trong khung, <a href="' + esc(media.url) + '" target="_blank" rel="noopener">mở link</a>.';
+          frame.appendChild(note);
+        }
+        return frame;
+      }
+      function placePlayer(where) {
+        const player = $("djPlayer");
+        const hud = $("djHud");
+        if (where === "wall" && nowPlaying) {
+          $("djSlot").appendChild(player);
+          $("djCaption").hidden = true;
+          hud.classList.add("player-away");
+        } else {
+          $("djForm").before(player);
+          hud.classList.remove("player-away");
+          $("djCaption").hidden = false;
+          $("djCaption").textContent = nowPlaying
+            ? "Đang chiếu cho cả quán · " + (nowPlaying.label || "")
+            : "Sân khấu đang trống. Dán link để cả quán cùng xem.";
+        }
+      }
+      function showMedia(media) {
+        const player = $("djPlayer");
+        if (!media || !media.url) {
+          nowPlaying = null;
+          shownKey = "";
+          player.hidden = true;
+          player.replaceChildren();
+          $("djStatus").textContent = "Chưa chiếu";
+          $("djBig").hidden = true;
+          $("djWall").hidden = true;
+          $("djStop").hidden = true;
+          placePlayer("overlay");
+          return;
+        }
+        const key = media.url + "@" + media.startedAt;
+        nowPlaying = media;
+        $("djStatus").textContent = (media.by ? media.by + " · " : "") + (media.label || "Đang chiếu");
+        $("djBig").hidden = false;
+        $("djWall").hidden = false;
+        $("djStop").hidden = false;
+        if (key === shownKey) return;
+        shownKey = key;
+        player.hidden = false;
+        player.replaceChildren(buildPlayer(media));
+        placePlayer("overlay");
+        toast((media.by || "Ai đó") + " bật " + (media.label || "một link") + " cho cả quán.");
+      }
+      function broadcastVenue(msg) {
+        venueConns.forEach((c) => { try { if (c.open) c.send(msg); } catch (e) {} });
+      }
+      function flushPending() {
+        if (!pendingVenue) return;
+        const msg = pendingVenue;
+        pendingVenue = null;
+        if (msg.kind === "play") {
+          nowPlaying = msg.media;
+          if (venueHost) broadcastVenue({ kind: "show", media: nowPlaying });
+          else if (venueLink && venueLink.open) venueLink.send(msg);
+        } else if (msg.kind === "off") {
+          nowPlaying = null;
+          if (venueHost) broadcastVenue({ kind: "show", media: null });
+          else if (venueLink && venueLink.open) venueLink.send({ kind: "off" });
+        }
+      }
+      function onVenueData(msg) {
+        if (!msg || typeof msg !== "object") return;
+        if (msg.kind === "play" && venueHost) {
+          nowPlaying = msg.media;
+          showMedia(nowPlaying);
+          broadcastVenue({ kind: "show", media: nowPlaying });
+          return;
+        }
+        if (msg.kind === "off" && venueHost) {
+          showMedia(null);
+          broadcastVenue({ kind: "show", media: null });
+          return;
+        }
+        if (msg.kind === "show") showMedia(msg.media || null);
+      }
+      function destroyVenue() {
+        try { if (venuePeer) venuePeer.destroy(); } catch (e) {}
+        venuePeer = null;
+        venueLink = null;
+        venueHost = false;
+        venueConns = [];
+      }
+      function claimVenue() {
+        const gen = ++venueGen;
+        destroyVenue();
+        let settled = false;
+        const p = new Peer(VENUE_ID, { config: { iceServers: ICE_SERVERS } });
+        const giveUp = () => {
+          if (settled || gen !== venueGen) return;
+          settled = true;
+          try { p.destroy(); } catch (e) {}
+          joinVenue(gen);
+        };
+        const to = setTimeout(giveUp, 8000);
+        p.on("open", () => {
+          if (gen !== venueGen) { try { p.destroy(); } catch (e) {} return; }
+          settled = true;
+          clearTimeout(to);
+          venuePeer = p;
+          venueHost = true;
+          p.on("connection", (conn) => {
+            venueConns.push(conn);
+            conn.on("open", () => { if (nowPlaying) conn.send({ kind: "show", media: nowPlaying }); });
+            conn.on("data", onVenueData);
+            conn.on("close", () => { venueConns = venueConns.filter((c) => c !== conn); });
+          });
+          p.on("disconnected", () => { try { p.reconnect(); } catch (e) {} });
+          flushPending();
+        });
+        p.on("error", (err) => {
+          if (gen !== venueGen || settled) return;
+          const type = err && err.type;
+          if (type === "unavailable-id" || type === "network" || type === "server-error" || type === "socket-error") giveUp();
+        });
+      }
+      function joinVenue(gen) {
+        if (gen !== venueGen) return;
+        const p = new Peer(undefined, { config: { iceServers: ICE_SERVERS } });
+        venuePeer = p;
+        p.on("open", () => {
+          if (gen !== venueGen) { try { p.destroy(); } catch (e) {} return; }
+          const conn = p.connect(VENUE_ID, { reliable: true });
+          venueLink = conn;
+          conn.on("open", flushPending);
+          conn.on("data", onVenueData);
+          conn.on("close", () => { if (gen === venueGen) setTimeout(claimVenue, 800); });
+        });
+        p.on("error", (err) => {
+          if (gen !== venueGen) return;
+          if (err && err.type === "peer-unavailable") setTimeout(claimVenue, 900);
+        });
+      }
+      function publishLink(raw) {
+        const media = parseLink(raw);
+        if (!media) { toast("Dán một link http hoặc https. YouTube, Spotify, SoundCloud và file video đều được."); return; }
+        media.by = myName();
+        media.startedAt = Date.now();
+        nowPlaying = media;
+        showMedia(media);
+        if (venueHost) broadcastVenue({ kind: "show", media });
+        else if (venueLink && venueLink.open) venueLink.send({ kind: "play", media });
+        else pendingVenue = { kind: "play", media };
+        $("djInput").value = "";
+      }
+      function stopShow() {
+        showMedia(null);
+        if (venueHost) broadcastVenue({ kind: "show", media: null });
+        else if (venueLink && venueLink.open) venueLink.send({ kind: "off" });
+        else pendingVenue = { kind: "off" };
+      }
+      $("djForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        publishLink($("djInput").value);
+      });
+      $("djStop").addEventListener("click", stopShow);
+      $("djBig").addEventListener("click", () => placePlayer("overlay"));
+      $("djWall").addEventListener("click", () => { if (myTable === 0) setView("vdj"); placePlayer("wall"); });
+      wallEl.addEventListener("click", (e) => {
+        if (e.target.closest("iframe, video, a, input, button")) return;
+        if (myTable === 0) setView("vdj");
+        $("djInput").focus();
+      });
+      loadPeerLib().then((ok) => { if (ok) claimVenue(); });
 
       $("nameInput").addEventListener("change", () => {
         updateSelf();
