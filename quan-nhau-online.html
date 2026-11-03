@@ -524,6 +524,131 @@
         });
       }
 
+      const staff = [];
+      const DECK_Y = 0.6;
+      function wrapAngle(a) {
+        while (a > Math.PI) a -= Math.PI * 2;
+        while (a < -Math.PI) a += Math.PI * 2;
+        return a;
+      }
+      function makeActor(gltf, x, z, yaw, speed) {
+        const model = gltf.scene.clone(true);
+        model.position.set(x, DECK_Y, z);
+        model.rotation.y = yaw;
+        model.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+        scene.add(model);
+        const mixer = new THREE.AnimationMixer(model);
+        const actions = {};
+        gltf.animations.forEach((clip) => {
+          const a = mixer.clipAction(clip);
+          a.setLoop(THREE.LoopRepeat, Infinity);
+          actions[clip.name] = a;
+        });
+        const actor = {
+          model, mixer, actions, speed, x, z, yaw, targetYaw: yaw,
+          goal: null, wait: 0, queue: [], clip: "",
+          play(name) {
+            if (!actions[name] || this.clip === name) return;
+            const prev = actions[this.clip];
+            actions[name].reset().fadeIn(0.18).play();
+            if (prev) prev.fadeOut(0.18);
+            this.clip = name;
+          },
+          go(x2, z2, clip) { this.queue.push({ to: [x2, z2], clip }); },
+          pose(clip, dur, face) { this.queue.push({ clip, dur, yaw: face }); },
+          pump() {
+            if (this.goal || this.wait > 0 || !this.queue.length) return;
+            const job = this.queue.shift();
+            if (job.run) { job.run(); this.pump(); return; }
+            if (job.to) {
+              this.goal = job.to;
+              this.play(job.clip || "Walk");
+            } else {
+              this.play(job.clip || "Idle");
+              this.wait = job.dur || 1;
+              if (job.yaw != null) this.targetYaw = job.yaw;
+            }
+          },
+          update(dt) {
+            this.mixer.update(dt);
+            if (this.wait > 0) this.wait = Math.max(0, this.wait - dt);
+            if (this.goal) {
+              const dx = this.goal[0] - this.x, dz = this.goal[1] - this.z;
+              const dist = Math.hypot(dx, dz);
+              this.targetYaw = Math.atan2(dx, dz);
+              if (dist < 0.12) {
+                this.x = this.goal[0];
+                this.z = this.goal[1];
+                this.goal = null;
+              } else {
+                const step = Math.min(this.speed * dt, dist);
+                this.x += (dx / dist) * step;
+                this.z += (dz / dist) * step;
+              }
+            }
+            this.yaw += wrapAngle(this.targetYaw - this.yaw) * Math.min(1, dt * 6);
+            this.model.position.set(this.x, DECK_Y, this.z);
+            this.model.rotation.y = this.yaw;
+            if (!this.goal && this.wait <= 0) this.pump();
+          }
+        };
+        actor.play("Idle");
+        staff.push(actor);
+        return actor;
+      }
+      function loopBartender(b) {
+        const spots = [-10.1, -8.7, -7.2, -5.7, -4.5];
+        const x = spots[Math.floor(Math.random() * spots.length)];
+        b.go(x, 6.12, "Walk");
+        b.pose(["Shake", "Wipe", "Pour"][Math.floor(Math.random() * 3)], 1.7 + Math.random() * 2.1, Math.PI);
+        if (Math.random() < 0.45) {
+          b.go(-4.45, 6.12, "Walk");
+          b.pose("Give", 1.45, Math.PI);
+        }
+        b.queue.push({ run: () => loopBartender(b) });
+      }
+      function loopWaiter(w) {
+        if (!worldTables.length) {
+          w.pose("Idle", 1.2, 0);
+          w.queue.push({ run: () => loopWaiter(w) });
+          return;
+        }
+        const t = worldTables[Math.floor(Math.random() * worldTables.length)];
+        const side = Math.random() < 0.5 ? 1 : -1;
+        const sx = Math.max(-11.2, Math.min(1.1, t.pos.x + side * 1.5));
+        const sz = t.pos.z;
+        const face = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+        const P = w.home;
+        w.go(P[0], P[1], "Walk");
+        w.pose("Take", 1.15, 0);
+        w.go(P[0], 3.15, "Walk_Tray");
+        w.go(sx, 3.15, "Walk_Tray");
+        w.go(sx, sz, "Walk_Tray");
+        w.pose("Serve", 1.55, face);
+        w.go(sx, 3.15, "Walk");
+        w.go(P[0], 3.15, "Walk");
+        w.queue.push({ run: () => loopWaiter(w) });
+      }
+      function loadStaff() {
+        const gl = new GLTFLoader();
+        let barG = null, waitG = null, left = 2;
+        const ready = () => {
+          if (--left) return;
+          const b = makeActor(barG, -7.2, 6.12, Math.PI, 1.15);
+          b.model.name = "Bartender";
+          loopBartender(b);
+          [[-4.45, 4.45], [-3.7, 4.55], [-5.35, 4.3]].forEach((home, i) => {
+            const w = makeActor(waitG, home[0], home[1], 0, 1.3);
+            w.model.name = "Waiter_" + (i + 1);
+            w.home = home;
+            w.pose("Idle", 0.4 + i * 2.1, 0);
+            w.queue.push({ run: () => loopWaiter(w) });
+          });
+        };
+        gl.load("assets/bartender.glb", (g) => { barG = g; ready(); }, undefined, () => { left = 0; });
+        gl.load("assets/waiter.glb", (g) => { waitG = g; ready(); }, undefined, () => { left = 0; });
+      }
+
       const loader = new GLTFLoader();
       loader.load("assets/quan-gio-bien_scene.glb", (gltf) => {
         root = gltf.scene;
@@ -538,6 +663,7 @@
         }
         sceneReady = true;
         alignDjScreen();
+        loadStaff();
         $("boot").hidden = true;
         renderLabels();
       }, undefined, () => {
@@ -685,6 +811,7 @@
       renderer.setAnimationLoop(() => {
         const dt = Math.min(clock.getDelta(), 0.05);
         if (mixer) mixer.update(dt);
+        staff.forEach((p) => p.update(dt));
         if (tween.k < 1 && tween.to) {
           tween.k = Math.min(1, tween.k + dt / 1.05);
           const e = tween.k * tween.k * (3 - 2 * tween.k);
