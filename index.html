@@ -34,8 +34,15 @@
         padding: 12px 14px 12px;
         border: 1px solid var(--line); border-radius: 14px;
         background: var(--plate); backdrop-filter: blur(8px);
-        max-width: min(420px, calc(100vw - 28px));
+        max-width: min(420px, calc(100vw - 148px));
       }
+      #btnMenus {
+        position: fixed; z-index: 8;
+        top: calc(env(safe-area-inset-top, 0px) + 14px);
+        right: max(14px, env(safe-area-inset-right));
+      }
+      body.menus-hidden .plate,
+      body.menus-hidden #djHud { display: none !important; }
       .plate h1 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.3px; color: var(--sun); text-shadow: 0 0 14px rgba(255, 165, 61, 0.4); }
       .plate .sub { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
       .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -186,7 +193,7 @@
       #djHud {
         position: fixed; z-index: 7;
         top: 168px; left: max(14px, env(safe-area-inset-left));
-        width: min(420px, calc(100vw - 28px));
+        width: min(420px, calc(100vw - 148px));
         padding: 10px; border-radius: 14px;
         background: var(--plate); border: 1px solid var(--line); backdrop-filter: blur(8px);
       }
@@ -234,6 +241,13 @@
       @media (max-width: 720px) {
         .chat { top: auto; bottom: 70px; height: min(46vh, 360px); }
         #selfWrap { width: 84px; height: 112px; }
+        .dock {
+          flex-wrap: nowrap; justify-content: flex-start;
+          width: calc(100% - 16px); max-width: calc(100% - 16px);
+          overflow-x: auto; -webkit-overflow-scrolling: touch;
+        }
+        .dock button { flex: none; }
+        #djHud { top: 132px; }
       }
     </style>
   </head>
@@ -241,7 +255,8 @@
     <canvas id="stage" aria-label="furu Bar, sàn gỗ nhìn ra biển. Bấm một bàn để ngồi. Sân khấu DJ chiếu link cho cả quán."></canvas>
     <div id="labels"></div>
 
-    <div class="plate">
+    <button type="button" id="btnMenus" class="sidebtn" aria-expanded="true" aria-controls="namePlate djHud">Ẩn menu</button>
+    <div class="plate" id="namePlate">
       <h1>furu Bar</h1>
       <p class="sub" id="blurb">12 bàn nhìn ra biển · bấm một bàn inox để ngồi</p>
       <div class="row">
@@ -479,7 +494,10 @@
 
       function createScreen() {
         const video = document.createElement("video");
-        video.playsInline = true; video.autoplay = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
         const videoTex = new THREE.VideoTexture(video);
         videoTex.colorSpace = THREE.SRGBColorSpace;
         const face = new THREE.Mesh(
@@ -939,7 +957,8 @@
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
       let down = null;
-      canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
+        canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); });
+        canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
       canvas.addEventListener("pointerup", (e) => {
         if (!down || !sceneReady || myTable !== 0) { down = null; return; }
         const dx = e.clientX - down.x, dy = e.clientY - down.y;
@@ -1190,6 +1209,8 @@
       let peers = {};
       let myPeer = null;
       let mySlot = 0;
+      let claimGen = 0;
+      let claimTold = false;
       let peerLibLoading = null;
       const ICE_SERVERS = [
         { urls: "stun:stun.l.google.com:19302" },
@@ -1251,8 +1272,10 @@
             const vid = screen.userData.video;
             if (vid.srcObject !== peer.remoteStream) {
               vid.srcObject = peer.remoteStream;
-              vid.muted = false;
-              vid.play().catch(() => {});
+              vid.muted = true;
+              vid.playsInline = true;
+              const heard = playRemoteAudio(peer.remoteStream);
+              vid.play().then(() => { if (!heard) vid.muted = false; }).catch(() => {});
             }
             if (face.material.map !== screen.userData.videoTex) {
               face.material.map = screen.userData.videoTex;
@@ -1277,8 +1300,28 @@
         wrap.classList.toggle("cam-off", !localStream || !camOn);
         if (localStream && vid.srcObject !== localStream) {
           vid.srcObject = localStream;
+          vid.muted = true;
+          vid.playsInline = true;
+          vid.setAttribute("playsinline", "");
           vid.play().catch(() => {});
         }
+      }
+      const remoteAudio = new Map();
+      function playRemoteAudio(stream) {
+        if (!stream || !stream.getAudioTracks().length) return false;
+        const key = stream.id;
+        let audio = remoteAudio.get(key);
+        if (!audio) {
+          audio = document.createElement("audio");
+          audio.autoplay = true;
+          audio.setAttribute("playsinline", "");
+          audio.style.display = "none";
+          document.body.appendChild(audio);
+          remoteAudio.set(key, audio);
+        }
+        if (audio.srcObject !== stream) audio.srcObject = stream;
+        audio.play().catch(() => {});
+        return true;
       }
 
       function enterRoom(n) {
@@ -1306,19 +1349,21 @@
       function joinTable(n) {
         if (myTable !== 0 || !sceneReady) return;
         if (n < 1 || n > worldTables.length) return;
-        if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+        if (!window.isSecureContext) {
+          toast("Điện thoại chỉ bật được mic và camera trên trang https.", 4600);
+        }
         toast("Đang xin mic và camera…", 1800);
         getMedia().then((stream) => {
           localStream = stream;
           enterRoom(n);
           connectToTable(n);
-        }).catch(() => {
-          toast("Không mở được mic/camera. Hãy cho phép quyền trong trình duyệt rồi thử lại.");
+          if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
         });
       }
 
       function leaveTable(silent) {
         if (myTable === 0) return;
+        claimGen++;
         broadcast({ kind: "bye" });
         Object.keys(peers).forEach((id) => {
           try { if (peers[id].conn) peers[id].conn.close(); } catch (e) {}
@@ -1345,12 +1390,56 @@
       }
 
       function getMedia() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(new Error("nomedia"));
-        return navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
-        }).catch(() => navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((s) => { camOn = false; return s; }))
-          .catch(() => { micOn = false; camOn = false; return null; });
+        const md = navigator.mediaDevices;
+        if (!md || !md.getUserMedia) { micOn = false; camOn = false; return Promise.resolve(null); }
+        const tries = [
+          { audio: { echoCancellation: true, noiseSuppression: true }, video: { facingMode: "user" } },
+          { audio: true, video: { facingMode: "user" } },
+          { audio: true, video: true },
+          { audio: true, video: false }
+        ];
+        const next = (i) => {
+          if (i >= tries.length) { micOn = false; camOn = false; return Promise.resolve(null); }
+          return md.getUserMedia(tries[i]).then((stream) => {
+            camOn = stream.getVideoTracks().length > 0;
+            micOn = stream.getAudioTracks().length > 0;
+            stream.getAudioTracks().forEach((t) => { t.enabled = micOn; });
+            stream.getVideoTracks().forEach((t) => { t.enabled = camOn; });
+            return stream;
+          }).catch(() => next(i + 1));
+        };
+        return next(0);
+      }
+      function shareStream() {
+        if (!myPeer || !localStream || myTable === 0) return;
+        for (let o = 1; o <= SEATS; o++) {
+          if (o === mySlot) continue;
+          let call = null;
+          try { call = myPeer.call(peerIdFor(myTable, o), localStream); } catch (e) {}
+          if (call) attachCall(o, call);
+        }
+      }
+      async function ensureVideo() {
+        if (localStream && localStream.getVideoTracks().some((t) => t.readyState === "live")) {
+          localStream.getVideoTracks().forEach((t) => { t.enabled = true; });
+          return true;
+        }
+        const md = navigator.mediaDevices;
+        if (!md || !md.getUserMedia) return false;
+        const stream = await md.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        const track = stream.getVideoTracks()[0];
+        if (!track) return false;
+        if (!localStream) localStream = stream;
+        else localStream.addTrack(track);
+        let replaced = false;
+        Object.keys(peers).forEach((id) => {
+          const pc = peers[id].call && peers[id].call.peerConnection;
+          if (!pc) return;
+          const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+          if (sender) { sender.replaceTrack(track); replaced = true; }
+        });
+        if (!replaced) shareStream();
+        return true;
       }
 
       function syncControlButtons() {
@@ -1367,12 +1456,34 @@
         broadcast({ kind: "state", mic: micOn, cam: camOn });
       });
       $("btnCam").addEventListener("click", () => {
-        camOn = !camOn;
-        if (localStream) localStream.getVideoTracks().forEach((t) => { t.enabled = camOn; });
-        syncControlButtons();
-        updateSelf();
-        broadcast({ kind: "state", mic: micOn, cam: camOn });
+        if (camOn) {
+          camOn = false;
+          if (localStream) localStream.getVideoTracks().forEach((t) => { t.enabled = false; });
+          syncControlButtons();
+          updateSelf();
+          broadcast({ kind: "state", mic: micOn, cam: camOn });
+          return;
+        }
+        ensureVideo().then((ok) => {
+          camOn = ok;
+          if (!ok) toast("Chưa bật được camera. Hãy cho phép camera cho trang này rồi bấm lại.", 4600);
+          syncControlButtons();
+          updateSelf();
+          broadcast({ kind: "state", mic: micOn, cam: camOn });
+        }).catch(() => {
+          camOn = false;
+          toast("Điện thoại chặn camera. Mở quyền camera của trình duyệt cho furu Bar.", 4800);
+          syncControlButtons();
+        });
       });
+      function setMenus(open) {
+        document.body.classList.toggle("menus-hidden", !open);
+        const btn = $("btnMenus");
+        btn.textContent = open ? "Ẩn menu" : "Hiện menu";
+        btn.setAttribute("aria-expanded", String(open));
+      }
+      setMenus(innerWidth > 720);
+      $("btnMenus").addEventListener("click", () => setMenus(document.body.classList.contains("menus-hidden")));
       $("btnLeave").addEventListener("click", () => leaveTable(false));
       $("btnChat").addEventListener("click", () => {
         document.body.classList.toggle("chat-open");
@@ -1548,35 +1659,43 @@
             return;
           }
           setConn("", "Đang tìm ghế trống trong bàn…");
-          claimNext(n, 1, false);
+          claimTold = false;
+          claimNext(n, 1, false, 0, ++claimGen);
         });
       }
-      function claimNext(n, slot, sawTaken) {
-        if (myTable !== n) return;
+      function claimNext(n, slot, sawTaken, tries, gen) {
+        if (gen !== claimGen || myTable !== n || myPeer) return;
         if (slot > SEATS) {
-          if (sawTaken) {
-            toast("Bàn đã đủ 4 người — chọn bàn khác.", 4600);
-            leaveTable(true);
-          } else {
-            setConn("err", "Không nối được tới máy chủ bắt tay — kiểm tra mạng rồi thử lại");
-            toast("Chưa nối được máy chủ bắt tay. Rời bàn rồi vào lại nhé.", 5200);
+          setConn("err", sawTaken
+            ? "Ghế đang bận — bạn vẫn ngồi ở bàn, đang thử lại"
+            : "Mạng chậm — bạn vẫn ngồi ở bàn, đang nối lại");
+          if (!claimTold) {
+            claimTold = true;
+            toast(sawTaken
+              ? "Chưa giữ được ghế. Bạn vẫn ngồi đây, mic và camera giữ nguyên."
+              : "Mạng chậm. Bạn vẫn ngồi ở bàn, đang nối lại.", 3600);
           }
+          setTimeout(() => claimNext(n, 1, false, 0, gen), sawTaken ? 2800 : 1600);
           return;
         }
         let p;
-        try { p = new Peer(peerIdFor(n, slot), { config: { iceServers: ICE_SERVERS } }); }
-        catch (e) { claimNext(n, slot + 1, sawTaken); return; }
+        try { p = new Peer(peerIdFor(n, slot), { config: { iceServers: ICE_SERVERS, sdpSemantics: "unified-plan" }, secure: true }); }
+        catch (e) { claimNext(n, slot + 1, sawTaken, 0, gen); return; }
         let opened = false, settled = false;
-        const to = setTimeout(() => {
-          if (settled || opened) return;
+        const giveUp = (taken) => {
+          if (settled || opened || gen !== claimGen) return;
           settled = true;
+          clearTimeout(to);
           try { p.destroy(); } catch (e) {}
-          claimNext(n, slot + 1, sawTaken);
-        }, 7000);
+          if (taken) claimNext(n, slot + 1, true, 0, gen);
+          else if (tries < 2) setTimeout(() => claimNext(n, slot, sawTaken, tries + 1, gen), 700);
+          else claimNext(n, slot + 1, sawTaken, 0, gen);
+        };
+        const to = setTimeout(() => giveUp(false), 7000);
         p.on("open", () => {
           opened = true;
           clearTimeout(to);
-          if (myTable !== n) { try { p.destroy(); } catch (e) {} return; }
+          if (gen !== claimGen || myTable !== n) { try { p.destroy(); } catch (e) {} return; }
           myPeer = p;
           mySlot = slot;
           wireMyPeer(n);
@@ -1589,15 +1708,8 @@
         });
         p.on("error", (err) => {
           const type = err && err.type;
-          if (!opened) {
-            if (settled) return;
-            if (type === "unavailable-id" || type === "network" || type === "server-error" || type === "socket-error" || type === "socket-closed" || type === "invalid-id") {
-              settled = true;
-              clearTimeout(to);
-              try { p.destroy(); } catch (e) {}
-              claimNext(n, slot + 1, sawTaken || type === "unavailable-id");
-            }
-          } else handlePeerError(err);
+          if (!opened) giveUp(type === "unavailable-id");
+          else handlePeerError(err);
         });
       }
       function wireMyPeer(n) {
