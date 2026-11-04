@@ -108,6 +108,8 @@
       .dock button[aria-pressed="true"] { background: var(--sun); color: #1a1208; border-color: var(--sun); }
       .dock button.off { background: var(--red); border-color: #c74a30; color: #fff; }
       .dock button.cheers { background: var(--sun); color: #1a1208; border-color: var(--sun); }
+      .dock button.call { background: #1f6b45; color: #f3fff6; border-color: #3e9a4a; }
+      .dock button.call:disabled { opacity: 0.65; }
       .dock button.leave { color: #ffb1a1; border-color: rgba(224, 95, 65, 0.7); }
       .dock button:focus-visible, .sidebtn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
@@ -272,6 +274,7 @@
       <button type="button" id="btnMic">Mic đang bật</button>
       <button type="button" id="btnCam">Camera đang bật</button>
       <button type="button" class="cheers" id="btnCheers">Cạn ly!</button>
+      <button type="button" class="call" id="btnCall">Gọi phục vụ</button>
       <button type="button" id="btnChat">Chat</button>
       <button type="button" class="leave" id="btnLeave">Rời bàn</button>
     </div>
@@ -659,6 +662,56 @@
         w.go(sx, 3.15, "Walk");
         w.go(P[0], 3.15, "Walk");
         w.queue.push({ run: () => loopWaiter(w) });
+      }
+      function aisleX(x) { return Math.max(-11.2, Math.min(1.1, x)); }
+      function summonWaiter(tableNum) {
+        const t = worldTables[tableNum - 1];
+        if (!t) return false;
+        const waiters = staff.filter((w) => w.home);
+        if (!waiters.length) return false;
+        const free = waiters.filter((w) => !w.busy);
+        if (waiters.some((w) => w.busy && w.callTable === tableNum)) return true;
+        const pool = free.length ? free : waiters;
+        let w = pool[0], best = Infinity;
+        pool.forEach((c) => {
+          const d = Math.hypot(c.x - t.pos.x, c.z - t.pos.z);
+          if (d < best) { best = d; w = c; }
+        });
+        const px = aisleX(t.pos.x + 0.95);
+        const pz = t.pos.z - 0.35;
+        const face = Math.atan2(t.pos.x - px, t.pos.z - pz);
+        w.busy = true;
+        w.callTable = tableNum;
+        w.speed = 2.4;
+        w.goal = null;
+        w.wait = 0;
+        w.queue = [];
+        if (Math.abs(w.z - 3.15) > 0.35) w.go(w.x, 3.15, "Walk_Tray");
+        if (Math.abs(w.x - px) > 0.25) w.go(px, 3.15, "Walk_Tray");
+        w.go(px, pz, "Walk_Tray");
+        w.queue.push({ run: () => { if (myTable === tableNum) toast("Phục vụ đã ra bàn."); } });
+        w.pose("Serve", 4.2, face);
+        w.queue.push({ run: () => { w.busy = false; w.callTable = 0; w.speed = 1.3; loopWaiter(w); } });
+        w.pump();
+        return true;
+      }
+      const seenCalls = new Set();
+      function dispatchCall(msg, relay) {
+        if (!msg || !msg.id || seenCalls.has(msg.id)) return false;
+        seenCalls.add(msg.id);
+        if (seenCalls.size > 40) seenCalls.delete(seenCalls.values().next().value);
+        const ok = summonWaiter(msg.table);
+        const who = msg.byId === myId ? "Bạn" : (msg.by || "Ai đó");
+        if (myTable === msg.table) {
+          sysMsg(who + " gọi phục vụ.");
+          if (msg.byId === myId) toast(ok ? "Phục vụ đang chạy ra bàn." : "Phục vụ chưa vào ca, thử lại một chút.");
+          else if (ok) toast(who + " gọi phục vụ.");
+        }
+        if (relay) {
+          if (venueHost) broadcastVenue(msg);
+          else if (venueLink && venueLink.open) venueLink.send(msg);
+        }
+        return ok;
       }
       function loadStaff() {
         const gl = new GLTFLoader();
@@ -1171,6 +1224,9 @@
         $("dockRoom").hidden = true;
         $("blurb").textContent = "12 bàn nhìn ra biển · bấm một bàn inox để ngồi";
         setConn("on", "Vào cùng bàn là nói chuyện được với bạn bè");
+        clearTimeout(callTimer);
+        $("btnCall").disabled = false;
+        $("btnCall").textContent = "Gọi phục vụ";
         refreshScreens();
         ring.visible = false;
         announceSeat();
@@ -1212,6 +1268,20 @@
       $("btnChat").addEventListener("click", () => {
         document.body.classList.toggle("chat-open");
         if (document.body.classList.contains("chat-open")) clearChatNote();
+      });
+      let callTimer = 0;
+      $("btnCall").addEventListener("click", () => {
+        if (myTable === 0 || $("btnCall").disabled) return;
+        const msg = { kind: "call", id: myId + "-" + Date.now(), table: myTable, by: myName(), byId: myId };
+        if (!dispatchCall(msg, true)) return;
+        const btn = $("btnCall");
+        btn.disabled = true;
+        btn.textContent = "Đang tới…";
+        clearTimeout(callTimer);
+        callTimer = setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = "Gọi phục vụ";
+        }, 8000);
       });
       $("btnCheers").addEventListener("click", () => {
         if (myTable === 0) return;
@@ -1725,6 +1795,7 @@
           return;
         }
         if (msg.kind === "show") { showMedia(msg.media || null); return; }
+        if (msg.kind === "call") { dispatchCall(msg, !!venueHost); return; }
         if (msg.kind === "here" && msg.who && venueHost) {
           if (from) from.whoId = msg.who.id;
           applyPresence(msg, true);
