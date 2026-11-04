@@ -75,11 +75,22 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
       }
       .person.me i { background: #3e9a4a; }
+      .person.sat i { display: none; }
+      .person.sat { transform: translate(-50%, -100%); }
       .person b {
         max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         font-size: 11px; font-weight: 800; color: var(--ink);
         background: rgba(10, 22, 36, 0.86); border: 1px solid var(--line);
         border-radius: 999px; padding: 1px 7px;
+      }
+      #btnChat { position: relative; }
+      #btnChat.has-note { box-shadow: 0 0 0 2px #e08a2a; }
+      #btnChat.has-note::after {
+        content: attr(data-n);
+        position: absolute; top: -8px; right: -4px;
+        min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+        border-radius: 999px; background: #e05f41; color: #fff;
+        font-size: 11px; line-height: 18px; font-weight: 800; text-align: center;
       }
 
       .dock {
@@ -544,6 +555,7 @@
       }
 
       const staff = [];
+      let guestGltf = null;
       const DECK_Y = 0.6;
       function wrapAngle(a) {
         while (a > Math.PI) a -= Math.PI * 2;
@@ -666,6 +678,15 @@
         };
         gl.load("assets/bartender.glb", (g) => { barG = g; ready(); }, undefined, () => { left = 0; });
         gl.load("assets/waiter.glb", (g) => { waitG = g; ready(); }, undefined, () => { left = 0; });
+        gl.load("assets/guest.glb", (g) => {
+          guestGltf = g;
+          g.scene.traverse((o) => {
+            if (!o.isMesh || !o.material || !o.material.color) return;
+            const c = o.material.color;
+            if (c.g > 0.45 && c.g > c.r && c.g > c.b) o.userData.shirt = true;
+          });
+          seated.forEach(placeGuest);
+        });
       }
 
       const loader = new GLTFLoader();
@@ -796,8 +817,65 @@
         if (!t) return null;
         const seat = slot > 0 ? t.seats[slot - 1] : null;
         const p = (seat || t.pos).clone();
-        p.y = t.pos.y + (seat ? 1.05 : 1.25);
+        p.y = t.pos.y + (seat ? 1.55 : 1.25);
         return p;
+      }
+      function playGuest(row, name) {
+        const next = row.actions && row.actions[name];
+        if (!next || row.clip === name) return;
+        const prev = row.actions[row.clip];
+        next.reset().fadeIn(0.2).play();
+        if (prev) prev.fadeOut(0.2);
+        row.clip = name;
+      }
+      function placeGuest(row) {
+        if (!row) return;
+        const t = worldTables[row.table - 1];
+        const seat = t && row.slot > 0 ? t.seats[row.slot - 1] : null;
+        if (!guestGltf || !seat) {
+          if (row.body) row.body.visible = false;
+          if (row.el) row.el.classList.remove("sat");
+          return;
+        }
+        if (!row.body) {
+          const model = guestGltf.scene.clone(true);
+          const mine = row.id === myId;
+          model.traverse((o) => {
+            if (!o.isMesh) return;
+            o.frustumCulled = false;
+            if (o.userData.shirt && o.material) {
+              o.material = o.material.clone();
+              if (!mine) o.material.color.setHSL(seatHue(row.id) / 360, 0.62, 0.46);
+            }
+          });
+          const mixer = new THREE.AnimationMixer(model);
+          const actions = {};
+          guestGltf.animations.forEach((clip) => {
+            const a = mixer.clipAction(clip);
+            a.setLoop(THREE.LoopRepeat, Infinity);
+            actions[clip.name] = a;
+          });
+          scene.add(model);
+          row.body = model;
+          row.mixer = mixer;
+          row.actions = actions;
+          row.clip = "";
+          row.restClip = seatHue(row.id) % 2 === 0 ? "Sit_Talk" : "Sit";
+          playGuest(row, row.restClip);
+        }
+        const dx = t.pos.x - seat.x, dz = t.pos.z - seat.z;
+        row.body.position.set(seat.x, DECK_Y, seat.z);
+        row.body.rotation.y = Math.atan2(dx, dz);
+        row.body.visible = true;
+        row.el.classList.add("sat");
+      }
+      function cheerGuests() {
+        const back = performance.now() + 1800;
+        seated.forEach((row) => {
+          if (row.table !== myTable || !row.body || !row.body.visible) return;
+          playGuest(row, "Sit_Cheers");
+          row.cheerUntil = back;
+        });
       }
       function upsertSeat(info) {
         if (!info || !info.id || !info.table) return;
@@ -821,10 +899,12 @@
         if (!mine) badge.style.background = "hsl(" + seatHue(info.id) + ", 68%, 42%)";
         row.el.querySelector("b").textContent = row.name + (mine ? " · bạn" : "");
         row.el.title = "Bàn " + row.table;
+        placeGuest(row);
       }
       function removeSeat(id) {
         const row = seated.get(id);
         if (!row) return;
+        if (row.body) scene.remove(row.body);
         row.el.remove();
         seated.delete(id);
       }
@@ -900,6 +980,15 @@
         const dt = Math.min(clock.getDelta(), 0.05);
         if (mixer) mixer.update(dt);
         staff.forEach((p) => p.update(dt));
+        const now = performance.now();
+        seated.forEach((row) => {
+          if (!row.mixer) return;
+          row.mixer.update(dt);
+          if (row.cheerUntil && now >= row.cheerUntil) {
+            row.cheerUntil = 0;
+            playGuest(row, row.restClip || "Sit");
+          }
+        });
         if (tween.k < 1 && tween.to) {
           tween.k = Math.min(1, tween.k + dt / 1.05);
           const e = tween.k * tween.k * (3 - 2 * tween.k);
@@ -1055,6 +1144,7 @@
       function joinTable(n) {
         if (myTable !== 0 || !sceneReady) return;
         if (n < 1 || n > worldTables.length) return;
+        if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
         toast("Đang xin mic và camera…", 1800);
         getMedia().then((stream) => {
           localStream = stream;
@@ -1084,6 +1174,7 @@
         refreshScreens();
         ring.visible = false;
         announceSeat();
+        clearChatNote();
         releaseCamera();
         if (!silent) toast("Bạn đã rời bàn.");
       }
@@ -1118,7 +1209,10 @@
         broadcast({ kind: "state", mic: micOn, cam: camOn });
       });
       $("btnLeave").addEventListener("click", () => leaveTable(false));
-      $("btnChat").addEventListener("click", () => document.body.classList.toggle("chat-open"));
+      $("btnChat").addEventListener("click", () => {
+        document.body.classList.toggle("chat-open");
+        if (document.body.classList.contains("chat-open")) clearChatNote();
+      });
       $("btnCheers").addEventListener("click", () => {
         if (myTable === 0) return;
         onChat({ kind: "cheers", from: myId, name: myName() });
@@ -1143,14 +1237,62 @@
           box.appendChild(d);
           box.scrollTop = box.scrollHeight;
           showCheers(cm.from === myId ? "Bạn" : (cm.name || "Ai đó"));
+          cheerGuests();
           return;
         }
         if (cm.kind === "msg" && cm.text) {
+          const mine = cm.from === myId;
+          const who = mine ? "Bạn" : (cm.name || "Khách");
           const m = document.createElement("div");
-          m.className = "msg" + (cm.from === myId ? " me" : "");
-          m.innerHTML = '<span class="who">' + esc(cm.from === myId ? "Bạn" : (cm.name || "Khách")) + ":</span> " + esc(cm.text);
+          m.className = "msg" + (mine ? " me" : "");
+          m.innerHTML = '<span class="who">' + esc(who) + ":</span> " + esc(cm.text);
           box.appendChild(m);
           box.scrollTop = box.scrollHeight;
+          if (!mine) notifyChat(who, cm.text);
+        }
+      }
+      let unreadChat = 0;
+      function setChatNote(n) {
+        unreadChat = n;
+        const btn = $("btnChat");
+        btn.classList.toggle("has-note", n > 0);
+        if (n > 0) btn.dataset.n = n > 9 ? "9+" : String(n);
+        else delete btn.dataset.n;
+        document.title = n > 0 ? "(" + (n > 9 ? "9+" : n) + ") furu Bar" : "furu Bar";
+      }
+      function clearChatNote() { setChatNote(0); }
+      function chatPing() {
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          const t = audioCtx.currentTime;
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.type = "sine";
+          o.frequency.setValueAtTime(660, t);
+          o.frequency.exponentialRampToValueAtTime(880, t + 0.08);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.05, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(t); o.stop(t + 0.24);
+        } catch (e) {}
+      }
+      function notifyChat(name, text) {
+        const looking = document.body.classList.contains("chat-open") && !document.hidden;
+        if (looking) return;
+        if (!document.body.classList.contains("chat-open")) setChatNote(unreadChat + 1);
+        if (!document.hidden) toast(name + ": " + text, 4200);
+        chatPing();
+        if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+          try {
+            const note = new Notification(name + " · furu Bar", { body: text, tag: "furubar-chat" });
+            note.onclick = () => {
+              window.focus();
+              document.body.classList.add("chat-open");
+              clearChatNote();
+              note.close();
+            };
+          } catch (e) {}
         }
       }
       $("chatForm").addEventListener("submit", (e) => {
