@@ -392,6 +392,7 @@
       const glasses = [];
       let root = null;
       let mixer = null;
+      let djMixer = null;
       let sceneReady = false;
       let hovered = -1;
       const ring = new THREE.Mesh(
@@ -750,80 +751,45 @@
         }
         return ok;
       }
-      function buildDj(stage) {
+      function tintWaiterOutfit(root) {
+        const next = new Map();
+        root.traverse((o) => {
+          if (!o.isMesh || !o.material || !o.material.color) return;
+          let p = o, head = false, knee = false;
+          while (p) {
+            const n = p.name || "";
+            if (n.indexOf("head") >= 0) head = true;
+            if (n.indexOf("knee") >= 0) knee = true;
+            p = p.parent;
+          }
+          if (head || knee) return;
+          const c = o.material.color;
+          const max = Math.max(c.r, c.g, c.b), min = Math.min(c.r, c.g, c.b);
+          if (max < 0.65 || max - min > 0.16) return;
+          if (!next.has(o.material)) {
+            const m = o.material.clone();
+            m.color.set(0xff6a14);
+            if (m.emissive) m.emissive.set(0x4a1c00);
+            next.set(o.material, m);
+          }
+          o.material = next.get(o.material);
+        });
+      }
+      function mountDj(stage, gltf) {
         const old = stage.getObjectByName("DJ");
         if (old) old.removeFromParent();
-        const skin = new THREE.MeshStandardMaterial({ color: 0xe9bfa0, roughness: 0.6 });
-        const bikini = new THREE.MeshStandardMaterial({ color: 0xe6e6e2, roughness: 0.55 });
-        const hairMat = new THREE.MeshStandardMaterial({ color: 0x121016, roughness: 0.5 });
-        const dj = new THREE.Group();
-        dj.name = "DJ";
-        dj.position.set(0, 0.4, 0.36);
+        const dj = gltf.scene.getObjectByName("DJ");
+        if (!dj) return;
+        dj.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; } });
         stage.add(dj);
-        const add = (geo, mat, x, y, z, parent) => {
-          const m = new THREE.Mesh(geo, mat);
-          m.position.set(x, y, z);
-          m.castShadow = true;
-          m.frustumCulled = false;
-          (parent || dj).add(m);
-          return m;
-        };
-        for (const s of [-1, 1]) {
-          add(new THREE.CapsuleGeometry(0.058, 0.72, 4, 10).translate(0, 0.42, 0), skin, s * 0.075, 0, 0);
-          add(new THREE.BoxGeometry(0.08, 0.035, 0.2), bikini, s * 0.075, 0.02, -0.03);
-        }
-        add(new THREE.CapsuleGeometry(0.115, 0.06, 4, 12).rotateZ(Math.PI / 2).scale(1, 1, 0.72), bikini, 0, 0.86, 0);
-        add(new THREE.CapsuleGeometry(0.1, 0.2, 4, 12).scale(1, 1, 0.7), skin, 0, 1.03, 0);
-        add(new THREE.CapsuleGeometry(0.125, 0.16, 4, 12).scale(1.08, 1, 0.72), skin, 0, 1.27, 0);
-        for (const s of [-1, 1]) {
-          add(new THREE.SphereGeometry(0.058, 14, 10).scale(1, 0.85, 0.75), bikini, s * 0.06, 1.27, -0.07);
-          const tie = add(new THREE.CylinderGeometry(0.006, 0.006, 0.2, 5), bikini, s * 0.045, 1.38, -0.04);
-          tie.rotation.set(-0.35, 0, s * 0.35);
-        }
-        add(new THREE.CylinderGeometry(0.008, 0.008, 0.26, 5).rotateZ(Math.PI / 2), bikini, 0, 1.27, 0.07);
-        add(new THREE.CylinderGeometry(0.045, 0.05, 0.12, 10), skin, 0, 1.46, 0);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 14).scale(0.95, 1.05, 1), skin);
-        head.position.set(0, 1.62, 0);
-        head.name = "DJ_head";
-        head.castShadow = true;
-        head.frustumCulled = false;
-        dj.add(head);
-        add(new THREE.SphereGeometry(0.118, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat, 0, 0.012, 0.008, head);
-        add(new THREE.BoxGeometry(0.22, 0.05, 0.03), hairMat, 0, 0.065, -0.098, head);
-        add(new THREE.BoxGeometry(0.24, 0.5, 0.05), hairMat, 0, -0.2, 0.085, head);
-        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a1210 });
-        for (const s of [-1, 1]) {
-          add(new THREE.BoxGeometry(0.035, 0.32, 0.05), hairMat, s * 0.105, -0.1, 0, head);
-          add(new THREE.SphereGeometry(0.012, 8, 6), eyeMat, s * 0.04, 0.015, -0.1, head);
-        }
-        add(new THREE.SphereGeometry(0.014, 8, 6).scale(1.6, 0.6, 1), new THREE.MeshStandardMaterial({ color: 0xd8566e }), 0, -0.055, -0.098, head);
-        const phones = new THREE.Mesh(
-          new THREE.TorusGeometry(0.13, 0.022, 6, 16, Math.PI),
-          new THREE.MeshStandardMaterial({ color: 0xffc2d6, roughness: 0.4 })
-        );
-        phones.position.set(0, 0.03, 0);
-        phones.rotation.y = Math.PI / 2;
-        phones.name = "DJ_headphones";
-        phones.frustumCulled = false;
-        head.add(phones);
-        for (const s of [-1, 1]) add(new THREE.CylinderGeometry(0.045, 0.045, 0.04, 14).rotateZ(Math.PI / 2), phones.material, s * 0.125, 0, 0, head);
-        for (const s of [-1, 1]) {
-          const mount = new THREE.Group();
-          mount.position.set(s * 0.165, 1.37, 0);
-          mount.rotation.y = Math.PI;
-          dj.add(mount);
-          const arm = new THREE.Group();
-          arm.name = s > 0 ? "DJ_arm_R" : "DJ_arm_L";
-          arm.rotation.x = s > 0 ? -1 : -1.15;
-          arm.rotation.z = -s * 0.15;
-          mount.add(arm);
-          add(new THREE.CapsuleGeometry(0.04, 0.2, 4, 8).translate(0, -0.14, 0), skin, 0, 0, 0, arm);
-          const elbow = new THREE.Group();
-          elbow.position.y = -0.28;
-          elbow.rotation.x = -0.5;
-          arm.add(elbow);
-          add(new THREE.CapsuleGeometry(0.034, 0.2, 4, 8).translate(0, -0.13, 0), skin, 0, 0, 0, elbow);
-        }
+        const src = THREE.AnimationClip.findByName(gltf.animations, "DJ_Show");
+        if (!src) return;
+        const tracks = src.tracks.filter((t) => t.name.indexOf("DJ_") === 0);
+        if (!tracks.length) return;
+        djMixer = new THREE.AnimationMixer(dj);
+        const action = djMixer.clipAction(new THREE.AnimationClip("DJ_Show", src.duration, tracks));
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.play();
       }
       function loadStaff() {
         const gl = new GLTFLoader();
@@ -842,7 +808,7 @@
           });
         };
         gl.load("assets/bartender.glb", (g) => { barG = g; ready(); }, undefined, () => { left = 0; });
-        gl.load("assets/waiter.glb", (g) => { waitG = g; ready(); }, undefined, () => { left = 0; });
+        gl.load("assets/waiter.glb", (g) => { tintWaiterOutfit(g.scene); waitG = g; ready(); }, undefined, () => { left = 0; });
         gl.load("assets/guest.glb", (g) => {
           guestGltf = g;
           g.scene.traverse((o) => {
@@ -855,6 +821,9 @@
       }
 
       const loader = new GLTFLoader();
+      const djPromise = new Promise((resolve) => {
+        loader.load("assets/dj_stage.glb", resolve, undefined, () => resolve(null));
+      });
       loader.load("assets/quan-gio-bien_scene.glb", (gltf) => {
         root = gltf.scene;
         scene.add(root);
@@ -863,7 +832,6 @@
         retitleSigns();
         document.fonts.ready.then(retitleSigns);
         const stage = root.getObjectByName("stage");
-        if (stage) buildDj(stage);
         const led = root.getObjectByName("led_wall");
         if (led) {
           led.material = new THREE.ShaderMaterial({
@@ -873,19 +841,25 @@
             fragmentShader: "void main(){ gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0); }"
           });
         }
-        if (gltf.animations && gltf.animations.length) {
-          mixer = new THREE.AnimationMixer(root);
-          gltf.animations.forEach((clip) => {
-            const action = mixer.clipAction(clip);
-            action.setLoop(THREE.LoopRepeat, Infinity);
-            action.play();
-          });
-        }
-        sceneReady = true;
-        alignDjScreen();
-        loadStaff();
-        $("boot").hidden = true;
-        renderLabels();
+        djPromise.then((djGltf) => {
+          if (stage && djGltf) mountDj(stage, djGltf);
+          if (gltf.animations && gltf.animations.length) {
+            mixer = new THREE.AnimationMixer(root);
+            gltf.animations.forEach((clip) => {
+              const tracks = clip.tracks.filter((t) => t.name.indexOf("DJ_") !== 0);
+              const use = tracks.length === clip.tracks.length ? clip : new THREE.AnimationClip(clip.name, clip.duration, tracks);
+              if (!use.tracks.length) return;
+              const action = mixer.clipAction(use);
+              action.setLoop(THREE.LoopRepeat, Infinity);
+              action.play();
+            });
+          }
+          sceneReady = true;
+          alignDjScreen();
+          loadStaff();
+          $("boot").hidden = true;
+          renderLabels();
+        });
       }, undefined, () => {
         $("boot").hidden = true;
         $("err").hidden = false;
@@ -1160,6 +1134,7 @@
       renderer.setAnimationLoop(() => {
         const dt = Math.min(clock.getDelta(), 0.05);
         if (mixer) mixer.update(dt);
+        if (djMixer) djMixer.update(dt);
         staff.forEach((p) => p.update(dt));
         const now = performance.now();
         seated.forEach((row) => {
