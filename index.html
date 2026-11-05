@@ -427,6 +427,7 @@
       }
 
       const _v = new THREE.Vector3();
+      const _face = new THREE.Vector3();
       const labelsEl = $("labels");
 
       function tableInfo(i) {
@@ -484,13 +485,13 @@
 
       function avatarTex(name) {
         const c = document.createElement("canvas");
-        c.width = 256; c.height = 340;
+        c.width = 256; c.height = 256;
         const g = c.getContext("2d");
-        g.fillStyle = "#2a1a0e"; g.fillRect(0, 0, 256, 340);
-        g.fillStyle = "#e08a2a"; g.beginPath(); g.arc(128, 130, 52, 0, Math.PI * 2); g.fill();
-        g.fillStyle = "#fff"; g.font = "800 48px Be Vietnam Pro, sans-serif";
+        g.fillStyle = "#2a1a0e"; g.fillRect(0, 0, 256, 256);
+        g.fillStyle = "#e08a2a"; g.beginPath(); g.arc(128, 128, 56, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#fff"; g.font = "800 72px Be Vietnam Pro, sans-serif";
         g.textAlign = "center"; g.textBaseline = "middle";
-        g.fillText((name || "?").trim().charAt(0).toUpperCase() || "?", 128, 134);
+        g.fillText((name || "?").trim().charAt(0).toUpperCase() || "?", 128, 132);
         const t = new THREE.CanvasTexture(c);
         t.colorSpace = THREE.SRGBColorSpace;
         return t;
@@ -505,16 +506,19 @@
         const videoTex = new THREE.VideoTexture(video);
         videoTex.colorSpace = THREE.SRGBColorSpace;
         const face = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.58, 0.76),
-          new THREE.MeshBasicMaterial({ map: videoTex, toneMapped: false })
+          new THREE.CircleGeometry(0.13, 40),
+          new THREE.MeshBasicMaterial({ map: videoTex, toneMapped: false, side: THREE.DoubleSide })
         );
         const frame = new THREE.Mesh(
-          new THREE.BoxGeometry(0.66, 0.84, 0.04),
-          new THREE.MeshStandardMaterial({ color: 0x24160f, roughness: 0.72 })
+          new THREE.RingGeometry(0.13, 0.155, 40),
+          new THREE.MeshBasicMaterial({ color: 0x24160f, side: THREE.DoubleSide })
         );
-        frame.position.z = -0.03;
+        frame.position.z = -0.008;
         const g = new THREE.Group();
         g.add(frame, face);
+        g.renderOrder = 3;
+        face.renderOrder = 3;
+        frame.renderOrder = 2;
         g.visible = false;
         scene.add(g);
         const tag = document.createElement("div");
@@ -1084,6 +1088,23 @@
         sendPresence({ kind: "here", who });
       }
 
+      function faceAnchor(row, target) {
+        if (row.body) {
+          if (!row.head) row.body.traverse((o) => { if (!row.head && o.name === "Guest_head") row.head = o; });
+          if (row.head) {
+            target.set(0, 0.15, 0.18);
+            row.head.localToWorld(target);
+            return true;
+          }
+        }
+        const t = worldTables[row.table - 1];
+        const seat = t && row.slot > 0 ? t.seats[row.slot - 1] : null;
+        if (!seat || !t) return false;
+        const dx = t.pos.x - seat.x, dz = t.pos.z - seat.z;
+        const len = Math.hypot(dx, dz) || 1;
+        target.set(seat.x + dx / len * 0.18, DECK_Y + 1.35, seat.z + dz / len * 0.18);
+        return true;
+      }
       function renderLabels() {
         const w = innerWidth, h = innerHeight;
         camera.updateMatrixWorld();
@@ -1110,11 +1131,14 @@
         });
         if (myTable > 0) {
           const t = worldTables[myTable - 1];
-          if (t) t.screens.forEach((s) => {
+          if (t) t.screens.forEach((s, idx) => {
             const tag = s.userData.tag;
             if (!s.visible) { tag.hidden = true; return; }
-            s.lookAt(camera.position.x, s.position.y, camera.position.z);
-            _v.copy(s.position); _v.y += 0.55;
+            let who = null;
+            seated.forEach((r) => { if (r.table === myTable && r.slot === idx + 1) who = r; });
+            if (who && faceAnchor(who, _face)) s.position.copy(_face);
+            s.lookAt(camera.position);
+            _v.copy(s.position); _v.y += 0.24;
             _v.project(camera);
             tag.hidden = _v.z > 1;
             tag.style.left = ((_v.x + 1) / 2 * w) + "px";
