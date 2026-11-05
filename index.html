@@ -116,6 +116,7 @@
       .dock button.off { background: var(--red); border-color: #c74a30; color: #fff; }
       .dock button.cheers { background: var(--sun); color: #1a1208; border-color: var(--sun); }
       .dock button.call { background: #1f6b45; color: #f3fff6; border-color: #3e9a4a; }
+      .dock button.talk { background: #1f4e8a; color: #f3f7ff; border-color: #6aa4e8; }
       .dock button.call:disabled { opacity: 0.65; }
       .dock button.leave { color: #ffb1a1; border-color: rgba(224, 95, 65, 0.7); }
       .dock button:focus-visible, .sidebtn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -286,6 +287,8 @@
       <button type="button" id="vdj" aria-pressed="false">Góc DJ</button>
     </div>
     <div class="dock" id="dockRoom" hidden>
+      <button type="button" class="talk" id="btnTalk">Bật tiếng</button>
+      <button type="button" class="talk" id="btnHear" hidden>Bấm để nghe</button>
       <button type="button" id="btnMic">Mic đang bật</button>
       <button type="button" id="btnCam">Camera đang bật</button>
       <button type="button" class="cheers" id="btnCheers">Cạn ly!</button>
@@ -1047,6 +1050,7 @@
         row.name = String(info.name || "Khách").slice(0, 24);
         row.table = info.table | 0;
         row.slot = info.slot | 0;
+        if (info.peerId) row.peerId = String(info.peerId);
         const mine = info.id === myId;
         row.el.classList.toggle("me", mine);
         const badge = row.el.querySelector("i");
@@ -1059,12 +1063,13 @@
       function removeSeat(id) {
         const row = seated.get(id);
         if (!row) return;
+        if (row.peerId && peers[row.peerId]) removePeer(row.peerId, false);
         if (row.body) scene.remove(row.body);
         row.el.remove();
         seated.delete(id);
       }
       function rosterList() {
-        return [...seated.values()].map((r) => ({ id: r.id, name: r.name, table: r.table, slot: r.slot }));
+        return [...seated.values()].map((r) => ({ id: r.id, name: r.name, table: r.table, slot: r.slot, peerId: r.peerId || "" }));
       }
       function announceSeat() {
         if (myTable === 0) {
@@ -1073,7 +1078,7 @@
           sendPresence({ kind: "gone", id: myId });
           return;
         }
-        const who = { id: myId, name: myName(), table: myTable, slot: mySlot || 0 };
+        const who = { id: myId, name: myName(), table: myTable, slot: mySlot || 0, peerId: "tamne-t" + myTable + "-" + myId };
         myPresence = who;
         upsertSeat(who);
         sendPresence({ kind: "here", who });
@@ -1179,18 +1184,50 @@
       let myId = rid(9);
       let myTable = 0;
       let localStream = null;
-      let micOn = true, camOn = true;
+      let micOn = false, camOn = false;
       let audioCtx = null;
       let peers = {};
       let myPeer = null;
       let mySlot = 0;
       let claimGen = 0;
-      let claimTold = false;
+      let peerOpening = null;
       let peerLibLoading = null;
-      const ICE_SERVERS = [
+      const TURN_API_KEY = "";
+      const TURN_APP = "";
+      let iceList = [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" }
       ];
+      let iceReady = null;
+      function iceServers() {
+        if (iceReady) return iceReady;
+        iceReady = (async () => {
+          const extra = [];
+          if (TURN_API_KEY && TURN_APP) {
+            try {
+              const url = "https://" + TURN_APP + ".metered.live/api/v1/turn/credentials?apiKey=" + encodeURIComponent(TURN_API_KEY);
+              const list = await (await fetch(url)).json();
+              if (Array.isArray(list)) extra.push.apply(extra, list);
+            } catch (e) {}
+          }
+          try {
+            const username = String(Math.floor(Date.now() / 1000) + 86400) + ":furubar";
+            const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("openrelayprojectsecret"), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+            const buf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(username));
+            const credential = btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+            const turn = (urls) => ({ urls: urls, username: username, credential: credential });
+            extra.push(
+              turn("turn:staticauth.openrelay.metered.ca:80"),
+              turn("turn:staticauth.openrelay.metered.ca:80?transport=tcp"),
+              turn("turn:staticauth.openrelay.metered.ca:443"),
+              turn("turns:staticauth.openrelay.metered.ca:443?transport=tcp")
+            );
+          } catch (e) {}
+          iceList = iceList.concat(extra);
+          return iceList;
+        })();
+        return iceReady;
+      }
       const PEER_SOURCES = [
         "https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js",
         "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js",
@@ -1223,34 +1260,45 @@
         c.classList.toggle("err", state === "err");
         $("connText").textContent = text;
       }
-      function peerIdFor(table, slot) { return "tamne-t" + table + "-ghe" + slot; }
-      function slotFromPeerId(pid) {
-        const m = /-ghe(\d+)/.exec(String(pid || ""));
-        return m ? parseInt(m[1], 10) : 0;
+      function myCallId() { return myTable ? "tamne-t" + myTable + "-" + myId : ""; }
+      function pickSlot() {
+        const used = new Set();
+        seated.forEach((row) => {
+          if (row.table === myTable && row.id !== myId && row.slot) used.add(row.slot);
+        });
+        for (let s = 1; s <= SEATS; s++) if (!used.has(s)) return s;
+        return 0;
+      }
+      function seatByPeer(pid) {
+        for (const row of seated.values()) if (row.peerId === pid) return row;
+        return null;
       }
 
       function refreshScreens() {
         worldTables.forEach((t) => t.screens.forEach((s) => { s.visible = false; s.userData.tag.hidden = true; }));
-        if (myTable === 0 || !mySlot) return;
+        if (myTable === 0) return;
         const table = worldTables[myTable - 1];
         if (!table) return;
-        for (let slot = 1; slot <= SEATS; slot++) {
-          if (slot === mySlot) continue;
-          const peer = peers[slot];
-          const screen = table.screens[slot - 1];
-          if (!peer || !screen) continue;
+        seated.forEach((row) => {
+          if (row.table !== myTable || row.id === myId || !row.slot) return;
+          const peer = row.peerId ? peers[row.peerId] : null;
+          const screen = table.screens[row.slot - 1];
+          if (!screen) return;
           screen.visible = true;
-          const name = peer.name || "Khách";
-          screen.userData.tag.textContent = name + (peer.micOn === false ? " · mic tắt" : "");
+          const name = (peer && peer.name) || row.name || "Khách";
+          const micOff = peer ? peer.micOn === false : false;
+          screen.userData.tag.textContent = name + (micOff ? " · mic tắt" : "");
           const face = screen.userData.face;
-          if (peer.remoteStream && peer.camOn !== false) {
+          const stream = peer && peer.remoteStream;
+          const hasVideo = stream && peer.camOn !== false && stream.getVideoTracks().some((t) => t.readyState === "live");
+          if (stream) playRemoteAudio(stream);
+          if (hasVideo) {
             const vid = screen.userData.video;
-            if (vid.srcObject !== peer.remoteStream) {
-              vid.srcObject = peer.remoteStream;
+            if (vid.srcObject !== stream) {
+              vid.srcObject = stream;
               vid.muted = true;
               vid.playsInline = true;
-              const heard = playRemoteAudio(peer.remoteStream);
-              vid.play().then(() => { if (!heard) vid.muted = false; }).catch(() => {});
+              vid.play().catch(() => {});
             }
             if (face.material.map !== screen.userData.videoTex) {
               face.material.map = screen.userData.videoTex;
@@ -1265,7 +1313,7 @@
             face.material.map = screen.userData.avatarTex;
             face.material.needsUpdate = true;
           }
-        }
+        });
       }
 
       function updateSelf() {
@@ -1282,6 +1330,23 @@
         }
       }
       const remoteAudio = new Map();
+      const silentAudio = document.createElement("audio");
+      silentAudio.setAttribute("playsinline", "");
+      silentAudio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+      document.body.appendChild(silentAudio);
+      function unlockAudio() {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          if (!audioCtx) audioCtx = new AC();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+        }
+        const kicked = silentAudio.play();
+        if (kicked && kicked.then) kicked.then(() => silentAudio.pause()).catch(() => {});
+        remoteAudio.forEach((audio) => {
+          const go = audio.play();
+          if (go && go.then) go.then(() => { $("btnHear").hidden = true; }).catch(() => { $("btnHear").hidden = false; });
+        });
+      }
       function playRemoteAudio(stream) {
         if (!stream || !stream.getAudioTracks().length) return false;
         const key = stream.id;
@@ -1295,62 +1360,64 @@
           remoteAudio.set(key, audio);
         }
         if (audio.srcObject !== stream) audio.srcObject = stream;
-        audio.play().catch(() => {});
+        const go = audio.play();
+        if (go && go.then) go.then(() => { $("btnHear").hidden = true; }).catch(() => { $("btnHear").hidden = false; });
         return true;
       }
 
       function enterRoom(n) {
         myTable = n;
+        mySlot = pickSlot();
         document.body.classList.add("in-room");
         document.body.classList.toggle("chat-open", innerWidth > 980);
         $("dockLobby").hidden = true;
         $("dockRoom").hidden = false;
+        $("btnTalk").hidden = false;
+        $("btnHear").hidden = true;
         const info = tableInfo(n - 1);
         $("roomTitle").textContent = info.name + " · " + info.zone;
         $("blurb").textContent = "Đang ngồi " + info.name + " (" + info.zone + ") · 4 ghế";
         $("chatMsgs").innerHTML = "";
-        sysMsg("Bạn đã ngồi " + info.name + ". Bạn bè mở trang này và bấm đúng bàn là nghe thấy nhau.");
-        const note = !localStream ? "Bạn vào bàn ở chế độ chưa có mic/camera."
-          : !camOn ? "Không thấy camera — bạn bè chỉ nghe tiếng của bạn." : "";
-        if (note) toast(note, 4800);
+        sysMsg("Bạn đã ngồi " + info.name + ". Bấm Bật tiếng để nói chuyện với cả bàn.");
+        toast("Đã ngồi. Bấm Bật tiếng khi muốn nói.", 3200);
         updateSelf();
         syncControlButtons();
         refreshScreens();
         ring.visible = false;
         announceSeat();
-        if (worldTables[n - 1]) sitCamera(worldTables[n - 1], 1);
+        if (worldTables[n - 1]) sitCamera(worldTables[n - 1], mySlot || 1);
+        openTablePeer();
       }
 
       function joinTable(n) {
         if (myTable !== 0 || !sceneReady) return;
         if (n < 1 || n > worldTables.length) return;
-        if (!window.isSecureContext) {
-          toast("Điện thoại chỉ bật được mic và camera trên trang https.", 4600);
-        }
-        toast("Đang xin mic và camera…", 1800);
-        getMedia().then((stream) => {
-          localStream = stream;
-          enterRoom(n);
-          connectToTable(n);
-          if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
-        });
+        enterRoom(n);
       }
 
       function leaveTable(silent) {
         if (myTable === 0) return;
         claimGen++;
+        peerOpening = null;
         broadcast({ kind: "bye" });
         Object.keys(peers).forEach((id) => {
           try { if (peers[id].conn) peers[id].conn.close(); } catch (e) {}
           try { if (peers[id].call) peers[id].call.close(); } catch (e) {}
         });
         peers = {};
-        if (myPeer) { try { myPeer.destroy(); } catch (e) {} myPeer = null; mySlot = 0; }
+        if (myPeer) { try { myPeer.destroy(); } catch (e) {} myPeer = null; }
+        mySlot = 0;
         if (localStream) { localStream.getTracks().forEach((tr) => tr.stop()); localStream = null; }
+        remoteAudio.forEach((a) => { try { a.pause(); a.srcObject = null; a.remove(); } catch (e) {} });
+        remoteAudio.clear();
+        micOn = false;
+        camOn = false;
         myTable = 0;
         document.body.classList.remove("in-room");
         $("dockLobby").hidden = false;
         $("dockRoom").hidden = true;
+        $("btnTalk").hidden = false;
+        $("btnHear").hidden = true;
         $("blurb").textContent = "12 bàn nhìn ra biển · bấm một bàn inox để ngồi";
         setConn("on", "Vào cùng bàn là nói chuyện được với bạn bè");
         clearTimeout(callTimer);
@@ -1364,35 +1431,64 @@
         if (!silent) toast("Bạn đã rời bàn.");
       }
 
-      function getMedia() {
-        const md = navigator.mediaDevices;
-        if (!md || !md.getUserMedia) { micOn = false; camOn = false; return Promise.resolve(null); }
-        const tries = [
-          { audio: { echoCancellation: true, noiseSuppression: true }, video: { facingMode: "user" } },
-          { audio: true, video: { facingMode: "user" } },
-          { audio: true, video: true },
-          { audio: true, video: false }
-        ];
-        const next = (i) => {
-          if (i >= tries.length) { micOn = false; camOn = false; return Promise.resolve(null); }
-          return md.getUserMedia(tries[i]).then((stream) => {
-            camOn = stream.getVideoTracks().length > 0;
-            micOn = stream.getAudioTracks().length > 0;
-            stream.getAudioTracks().forEach((t) => { t.enabled = micOn; });
-            stream.getVideoTracks().forEach((t) => { t.enabled = camOn; });
-            return stream;
-          }).catch(() => next(i + 1));
-        };
-        return next(0);
-      }
-      function shareStream() {
-        if (!myPeer || !localStream || myTable === 0) return;
-        for (let o = 1; o <= SEATS; o++) {
-          if (o === mySlot) continue;
-          let call = null;
-          try { call = myPeer.call(peerIdFor(myTable, o), localStream); } catch (e) {}
-          if (call) attachCall(o, call);
+      function startVoice() {
+        unlockAudio();
+        if (myTable === 0) return;
+        if (localStream && localStream.getAudioTracks().some((t) => t.readyState === "live")) {
+          micOn = true;
+          localStream.getAudioTracks().forEach((t) => { t.enabled = true; });
+          $("btnTalk").hidden = true;
+          syncControlButtons();
+          updateSelf();
+          Promise.resolve(myPeer ? null : openTablePeer()).then(() => {
+            if (!myPeer) $("btnTalk").hidden = false;
+            pushStream();
+          });
+          return;
         }
+        if (!window.isSecureContext) {
+          toast("Điện thoại chỉ bật được mic trên trang https.", 4600);
+          return;
+        }
+        const md = navigator.mediaDevices;
+        if (!md || !md.getUserMedia) {
+          toast("Trình duyệt này không mở được mic.", 4200);
+          return;
+        }
+        if (!myPeer) openTablePeer();
+        toast("Đang xin mic…", 1600);
+        md.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false })
+          .catch(() => md.getUserMedia({ audio: true, video: false }))
+          .then((stream) => {
+            if (myTable === 0) { stream.getTracks().forEach((t) => t.stop()); return; }
+            micOn = true;
+            if (!localStream) localStream = stream;
+            else {
+              stream.getAudioTracks().forEach((t) => {
+                if (!localStream.getAudioTracks().some((a) => a.readyState === "live")) localStream.addTrack(t);
+                else t.stop();
+              });
+            }
+            $("btnTalk").hidden = true;
+            syncControlButtons();
+            updateSelf();
+            Promise.resolve(myPeer ? null : openTablePeer()).then(() => pushStream());
+            if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+            toast("Đã bật tiếng.");
+          })
+          .catch(() => toast("Chưa được phép dùng mic. Cho phép micro rồi bấm Bật tiếng lại.", 4800));
+      }
+      function pushStream() {
+        if (!myPeer || !localStream || myTable === 0) return;
+        seated.forEach((row) => {
+          if (row.table !== myTable || row.id === myId || !row.peerId) return;
+          const entry = peers[row.peerId];
+          if (entry && entry.call) {
+            try { entry.call.close(); } catch (e) {}
+            entry.call = null;
+          }
+          dial(row.peerId);
+        });
       }
       async function ensureVideo() {
         if (localStream && localStream.getVideoTracks().some((t) => t.readyState === "live")) {
@@ -1413,7 +1509,7 @@
           const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
           if (sender) { sender.replaceTrack(track); replaced = true; }
         });
-        if (!replaced) shareStream();
+        if (!replaced) Promise.resolve(myPeer ? null : openTablePeer()).then(() => pushStream());
         return true;
       }
 
@@ -1423,9 +1519,22 @@
         $("btnCam").classList.toggle("off", !camOn);
         $("btnCam").textContent = camOn ? "Camera đang bật" : "Camera đang tắt";
       }
+      $("btnTalk").addEventListener("click", startVoice);
+      $("btnHear").addEventListener("click", () => {
+        unlockAudio();
+        let pending = 0;
+        remoteAudio.forEach((audio) => {
+          pending++;
+          const go = audio.play();
+          if (go && go.then) go.then(() => { if (--pending === 0) $("btnHear").hidden = true; }).catch(() => {});
+          else pending--;
+        });
+        if (!remoteAudio.size) $("btnHear").hidden = true;
+      });
       $("btnMic").addEventListener("click", () => {
+        if (!localStream || !localStream.getAudioTracks().length) { startVoice(); return; }
         micOn = !micOn;
-        if (localStream) localStream.getAudioTracks().forEach((t) => { t.enabled = micOn; });
+        localStream.getAudioTracks().forEach((t) => { t.enabled = micOn; });
         syncControlButtons();
         refreshScreens();
         broadcast({ kind: "state", mic: micOn, cam: camOn });
@@ -1601,8 +1710,9 @@
       function refreshConnText() {
         if (myTable === 0) return;
         const n = Object.keys(peers).length;
-        if (n > 0) setConn("on", "Đang nói chuyện với " + n + " bạn cùng bàn");
-        else setConn("", "Đã ngồi vào bàn — đang chờ bạn vào cùng bàn…");
+        if (!localStream) setConn(n ? "on" : "", n ? "Đã thấy " + n + " bạn — bấm Bật tiếng để nói" : "Đã ngồi. Bấm Bật tiếng để nói chuyện.");
+        else if (n > 0) setConn("on", "Đang nói chuyện với " + n + " bạn cùng bàn");
+        else setConn("", "Đã bật tiếng — đang chờ bạn cùng bàn");
       }
       function loadPeerLib() {
         if (typeof Peer !== "undefined") return Promise.resolve(true);
@@ -1623,85 +1733,80 @@
         });
         return peerLibLoading;
       }
-      function connectToTable(n) {
-        setConn("", "Đang tải thư viện kết nối…");
-        loadPeerLib().then((ok) => {
-          if (myTable !== n) return;
+      function openTablePeer() {
+        if (myPeer) return Promise.resolve();
+        if (peerOpening) return peerOpening;
+        const gen = ++claimGen;
+        const n = myTable;
+        const id = myCallId();
+        setConn("", "Đang nối cuộc gọi…");
+        peerOpening = loadPeerLib().then((ok) => {
+          if (gen !== claimGen || myTable !== n) { peerOpening = null; return; }
           if (!ok) {
-            setConn("err", "Không tải được thư viện kết nối — thử rời bàn rồi vào lại");
-            toast("Không tải được thư viện kết nối. Kiểm tra mạng rồi vào lại bàn.", 5200);
-            if (worldTables[n - 1]) sitCamera(worldTables[n - 1], 1);
+            peerOpening = null;
+            setConn("err", "Không tải được thư viện kết nối — bấm Bật tiếng để thử lại");
+            toast("Không tải được thư viện kết nối. Kiểm tra mạng rồi bấm Bật tiếng.", 5200);
             return;
           }
-          setConn("", "Đang tìm ghế trống trong bàn…");
-          claimTold = false;
-          claimNext(n, 1, false, 0, ++claimGen);
+          return iceServers().then((ice) => new Promise((resolve) => {
+            if (gen !== claimGen || myTable !== n || myPeer) { peerOpening = null; resolve(); return; }
+            let p;
+            try { p = new Peer(id, { config: { iceServers: ice, sdpSemantics: "unified-plan" }, secure: true }); }
+            catch (e) {
+              peerOpening = null;
+              setConn("err", "Không mở được cuộc gọi — bấm Bật tiếng để thử lại");
+              resolve();
+              return;
+            }
+            let settled = false;
+            const fail = (msg) => {
+              if (settled || gen !== claimGen) return;
+              settled = true;
+              clearTimeout(to);
+              try { p.destroy(); } catch (e) {}
+              peerOpening = null;
+              if (myTable === n && !myPeer) {
+                setConn("err", msg);
+                $("btnTalk").hidden = false;
+              }
+              resolve();
+            };
+            const to = setTimeout(() => fail("Mạng chậm — bấm Bật tiếng để thử lại"), 8000);
+            p.on("open", () => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(to);
+              peerOpening = null;
+              if (gen !== claimGen || myTable !== n) { try { p.destroy(); } catch (e) {} resolve(); return; }
+              myPeer = p;
+              wireMyPeer();
+              announceSeat();
+              dialKnown();
+              refreshConnText();
+              refreshScreens();
+              resolve();
+            });
+            p.on("error", (err) => {
+              if (!myPeer) fail("Chưa nối được cuộc gọi — bạn vẫn ngồi ở bàn. Bấm Bật tiếng để thử lại.");
+              else handlePeerError(err);
+            });
+          }));
         });
+        return peerOpening;
       }
-      function claimNext(n, slot, sawTaken, tries, gen) {
-        if (gen !== claimGen || myTable !== n || myPeer) return;
-        if (slot > SEATS) {
-          setConn("err", sawTaken
-            ? "Ghế đang bận — bạn vẫn ngồi ở bàn, đang thử lại"
-            : "Mạng chậm — bạn vẫn ngồi ở bàn, đang nối lại");
-          if (!claimTold) {
-            claimTold = true;
-            toast(sawTaken
-              ? "Chưa giữ được ghế. Bạn vẫn ngồi đây, mic và camera giữ nguyên."
-              : "Mạng chậm. Bạn vẫn ngồi ở bàn, đang nối lại.", 3600);
-          }
-          setTimeout(() => claimNext(n, 1, false, 0, gen), sawTaken ? 2800 : 1600);
-          return;
-        }
-        let p;
-        try { p = new Peer(peerIdFor(n, slot), { config: { iceServers: ICE_SERVERS, sdpSemantics: "unified-plan" }, secure: true }); }
-        catch (e) { claimNext(n, slot + 1, sawTaken, 0, gen); return; }
-        let opened = false, settled = false;
-        const giveUp = (taken) => {
-          if (settled || opened || gen !== claimGen) return;
-          settled = true;
-          clearTimeout(to);
-          try { p.destroy(); } catch (e) {}
-          if (taken) claimNext(n, slot + 1, true, 0, gen);
-          else if (tries < 2) setTimeout(() => claimNext(n, slot, sawTaken, tries + 1, gen), 700);
-          else claimNext(n, slot + 1, sawTaken, 0, gen);
-        };
-        const to = setTimeout(() => giveUp(false), 7000);
-        p.on("open", () => {
-          opened = true;
-          clearTimeout(to);
-          if (gen !== claimGen || myTable !== n) { try { p.destroy(); } catch (e) {} return; }
-          myPeer = p;
-          mySlot = slot;
-          wireMyPeer(n);
-          refreshConnText();
-          refreshScreens();
-          announceSeat();
-          const table = worldTables[n - 1];
-          if (table) sitCamera(table, slot);
-          for (let o = 1; o <= SEATS; o++) if (o !== slot) callSlot(n, o);
-        });
-        p.on("error", (err) => {
-          const type = err && err.type;
-          if (!opened) giveUp(type === "unavailable-id");
-          else handlePeerError(err);
-        });
-      }
-      function wireMyPeer(n) {
+      function wireMyPeer() {
         myPeer.on("connection", (conn) => {
-          const slot = slotFromPeerId(conn.peer);
-          if (!slot || slot === mySlot || myTable !== n) return;
-          wireConn(slot, conn);
+          if (!conn.peer || conn.peer === myPeer.id || myTable === 0) return;
+          wireConn(conn.peer, conn);
         });
         myPeer.on("call", (call) => {
-          const slot = slotFromPeerId(call.peer);
-          if (!slot || slot === mySlot || myTable !== n) { try { call.close(); } catch (e) {} return; }
+          if (!call.peer || call.peer === myPeer.id || myTable === 0) { try { call.close(); } catch (e) {} return; }
           try { if (localStream) call.answer(localStream); else call.answer(); }
           catch (e) { try { call.answer(); } catch (e2) {} }
-          attachCall(slot, call);
+          attachCall(call.peer, call, 0);
         });
         myPeer.on("disconnected", () => {
-          if (myTable === 0) return;
+          if (myTable === 0 || !myPeer) return;
           setConn("err", "Mất nối tới máy chủ bắt tay — đang tự nối lại…");
           try { myPeer.reconnect(); } catch (e) {}
         });
@@ -1713,58 +1818,90 @@
           if (myTable > 0) setConn("err", "Mất nối tới máy chủ bắt tay — các máy đã nối vẫn nói chuyện bình thường");
         }
       }
-      function getEntry(slot) {
-        if (!peers[slot]) peers[slot] = { slot, name: "Khách", conn: null, call: null, remoteStream: null, micOn: true, camOn: true };
-        return peers[slot];
+      function getEntry(pid) {
+        if (!peers[pid]) {
+          const row = seatByPeer(pid);
+          peers[pid] = { peerId: pid, slot: row ? row.slot : 0, name: (row && row.name) || "Khách", conn: null, call: null, remoteStream: null, micOn: true, camOn: true };
+        }
+        return peers[pid];
       }
-      function callSlot(n, slot) {
-        if (!myPeer) return;
-        let conn = null;
-        try { conn = myPeer.connect(peerIdFor(n, slot), { reliable: true }); } catch (e) {}
-        if (conn) wireConn(slot, conn);
-        if (localStream) {
-          let call = null;
-          try { call = myPeer.call(peerIdFor(n, slot), localStream); } catch (e) {}
-          if (call) attachCall(slot, call);
+      function dialKnown() {
+        seated.forEach((row) => {
+          if (row.table !== myTable || row.id === myId || !row.peerId) return;
+          dial(row.peerId, 0);
+        });
+      }
+      function dial(pid, tries) {
+        if (!myPeer || !pid || pid === myPeer.id || myTable === 0) return;
+        const row = seatByPeer(pid);
+        const entry = getEntry(pid);
+        if (row) {
+          entry.name = row.name || entry.name;
+          entry.slot = row.slot || entry.slot;
+        }
+        if (!entry.conn) {
+          try {
+            const conn = myPeer.connect(pid, { reliable: true });
+            if (conn) wireConn(pid, conn);
+          } catch (e) {}
+        }
+        if (localStream && !entry.call) {
+          try {
+            const call = myPeer.call(pid, localStream);
+            if (call) attachCall(pid, call, tries || 0);
+          } catch (e) {}
         }
       }
-      function attachCall(slot, call) {
+      function attachCall(pid, call, tries) {
+        const entry = getEntry(pid);
+        entry.call = call;
         call.on("stream", (rs) => {
-          const entry = getEntry(slot);
-          if (entry.call && entry.call !== call) { try { entry.call.close(); } catch (e) {} }
-          entry.call = call;
-          entry.remoteStream = rs;
+          const cur = peers[pid];
+          if (!cur) return;
+          if (cur.remoteStream && cur.remoteStream !== rs) {
+            const old = remoteAudio.get(cur.remoteStream.id);
+            if (old) { try { old.pause(); old.srcObject = null; old.remove(); } catch (e) {} remoteAudio.delete(cur.remoteStream.id); }
+          }
+          cur.call = call;
+          cur.remoteStream = rs;
           refreshScreens();
         });
         call.on("close", () => {
-          const entry = peers[slot];
-          if (entry && entry.call === call) { entry.call = null; entry.remoteStream = null; }
-          refreshScreens();
+          const cur = peers[pid];
+          if (cur && cur.call === call) { cur.call = null; cur.remoteStream = null; refreshScreens(); }
         });
-        call.on("error", () => {});
+        call.on("error", (err) => {
+          const type = err && err.type;
+          const cur = peers[pid];
+          if (cur && cur.call === call) cur.call = null;
+          if ((type === "peer-unavailable" || type === "network") && (tries || 0) < 4 && myTable > 0) {
+            setTimeout(() => dial(pid, (tries || 0) + 1), 900);
+          } else if (type && myTable > 0) {
+            setConn("err", "Chưa nối được tiếng — bấm Bật tiếng để thử lại");
+          }
+        });
       }
-      function wireConn(slot, conn) {
+      function wireConn(pid, conn) {
         conn.on("open", () => {
-          const entry = getEntry(slot);
+          const entry = getEntry(pid);
           if (entry.conn && entry.conn !== conn && entry.conn.open) { try { conn.close(); } catch (e) {} return; }
           entry.conn = conn;
           sendTo(entry, { kind: "hello", name: myName(), mic: micOn, cam: camOn });
-          if (localStream && myPeer && !entry.callTried) {
-            entry.callTried = true;
-            let c2 = null;
-            try { c2 = myPeer.call(conn.peer, localStream); } catch (e) {}
-            if (c2) attachCall(slot, c2);
-          }
+          if (localStream && !entry.call) dial(pid, 0);
           refreshScreens();
           refreshConnText();
         });
-        conn.on("data", (data) => handleData(slot, data));
-        conn.on("close", () => removePeer(slot, true));
+        conn.on("data", (data) => handleData(pid, data));
+        conn.on("close", () => {
+          const entry = peers[pid];
+          if (entry && entry.conn === conn) entry.conn = null;
+          refreshConnText();
+        });
         conn.on("error", () => {});
       }
-      function handleData(slot, m) {
+      function handleData(pid, m) {
         if (!m || typeof m !== "object") return;
-        const entry = getEntry(slot);
+        const entry = getEntry(pid);
         if (m.kind === "hello") {
           const isNew = !entry.greeted;
           entry.name = String(m.name || "Khách").slice(0, 24);
@@ -1775,14 +1912,14 @@
           refreshScreens();
           refreshConnText();
         } else if (m.kind === "msg" && m.text) {
-          onChat({ kind: "msg", from: "s" + slot, name: entry.name, text: String(m.text).slice(0, 300) });
+          onChat({ kind: "msg", from: pid, name: entry.name, text: String(m.text).slice(0, 300) });
         } else if (m.kind === "cheers") {
-          onChat({ kind: "cheers", from: "s" + slot, name: entry.name });
+          onChat({ kind: "cheers", from: pid, name: entry.name });
         } else if (m.kind === "state") {
           entry.micOn = m.mic !== false;
           entry.camOn = m.cam !== false;
           refreshScreens();
-        } else if (m.kind === "bye") removePeer(slot, true);
+        } else if (m.kind === "bye") removePeer(pid, true);
       }
       function sendTo(entry, obj) {
         try { if (entry.conn && entry.conn.open) entry.conn.send(obj); } catch (e) {}
@@ -1818,11 +1955,16 @@
         if (venueLink && venueLink.open) venueLink.send(msg);
         else pendingPresence = msg;
       }
+      function notePeer(who) {
+        if (!who || who.id === myId || who.table !== myTable || !who.peerId || !myPeer) return;
+        dial(String(who.peerId), 0);
+      }
       function applyPresence(msg, relay) {
         if (!msg) return;
         if (msg.kind === "here" && msg.who) {
           upsertSeat(msg.who);
           if (relay) broadcastVenue(msg);
+          notePeer(msg.who);
         } else if (msg.kind === "gone" && msg.id) {
           if (msg.id === myId && myTable > 0) return;
           removeSeat(msg.id);
@@ -1830,7 +1972,7 @@
         } else if (msg.kind === "roster" && Array.isArray(msg.people)) {
           const keep = new Set(msg.people.map((p) => p.id));
           [...seated.keys()].forEach((id) => { if (id !== myId && !keep.has(id)) removeSeat(id); });
-          msg.people.forEach(upsertSeat);
+          msg.people.forEach((p) => { upsertSeat(p); notePeer(p); });
         }
       }
 
@@ -2011,7 +2153,10 @@
         const gen = ++venueGen;
         destroyVenue();
         let settled = false;
-        const p = new Peer(VENUE_ID, { config: { iceServers: ICE_SERVERS } });
+        let p = null;
+        iceServers().then((ice) => {
+          if (gen !== venueGen) return;
+          p = new Peer(VENUE_ID, { config: { iceServers: ice, sdpSemantics: "unified-plan" }, secure: true });
         const giveUp = () => {
           if (settled || gen !== venueGen) return;
           settled = true;
@@ -2049,10 +2194,13 @@
           const type = err && err.type;
           if (type === "unavailable-id" || type === "network" || type === "server-error" || type === "socket-error") giveUp();
         });
+        });
       }
       function joinVenue(gen) {
         if (gen !== venueGen) return;
-        const p = new Peer(undefined, { config: { iceServers: ICE_SERVERS } });
+        iceServers().then((ice) => {
+          if (gen !== venueGen) return;
+          const p = new Peer(undefined, { config: { iceServers: ice, sdpSemantics: "unified-plan" }, secure: true });
         venuePeer = p;
         p.on("open", () => {
           if (gen !== venueGen) { try { p.destroy(); } catch (e) {} return; }
@@ -2070,6 +2218,7 @@
         p.on("error", (err) => {
           if (gen !== venueGen) return;
           if (err && err.type === "peer-unavailable") setTimeout(claimVenue, 900);
+        });
         });
       }
       function publishLink(raw) {
