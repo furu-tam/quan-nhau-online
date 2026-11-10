@@ -259,7 +259,7 @@
     <button type="button" id="btnMenus" class="sidebtn" aria-expanded="true" aria-controls="namePlate djHud">Ẩn menu</button>
     <div class="plate" id="namePlate">
       <h1>furu Bar</h1>
-      <p class="sub" id="blurb">12 bàn nhìn ra biển · bấm một bàn inox để ngồi</p>
+      <p class="sub" id="blurb">12 bàn 4 người · bàn 8 người · bàn lớn 20 người</p>
       <div class="row">
         <label for="nameInput">Tên</label>
         <input id="nameInput" type="text" maxlength="24" placeholder="Tên của bạn" autocomplete="off" />
@@ -431,7 +431,10 @@
       const labelsEl = $("labels");
 
       function tableInfo(i) {
-        return { n: i + 1, name: "Bàn " + (i + 1), zone: ZONES[Math.floor(i / 4)] || "" };
+        const t = worldTables[i];
+        const seats = t && t.seats ? t.seats.length : 4;
+        if (t && t.label) return { n: i + 1, name: t.label, zone: t.zone || "", seats };
+        return { n: i + 1, name: "Bàn " + (i + 1), zone: ZONES[Math.floor(i / 4)] || "", seats };
       }
 
       function makeNeon(text) {
@@ -580,7 +583,83 @@
           picker.userData.table = i;
           scene.add(picker);
           pickers.push(picker);
-          worldTables.push({ index: i, pos, seats, screens, tag, mesh });
+          worldTables.push({ index: i, pos, seats, screens, tag, mesh, reach: 1.2 });
+        });
+        addGatheringTables(gltfScene);
+      }
+
+      function firstMaterial(obj) {
+        let mat = null;
+        obj.traverse((o) => {
+          if (mat || !o.isMesh || !o.material) return;
+          mat = Array.isArray(o.material) ? o.material[0] : o.material;
+        });
+        return mat;
+      }
+
+      function addGatheringTables(gltfScene) {
+        const srcTable = gltfScene.getObjectByName("table_00");
+        const red = gltfScene.getObjectByName("stool_red_00");
+        const blue = gltfScene.getObjectByName("stool_blue_00");
+        if (!srcTable || !red || !blue) return;
+        const wood = firstMaterial(srcTable);
+        const topMat = wood ? wood.clone() : new THREE.MeshStandardMaterial({ color: 0x2a1810, roughness: 0.62, metalness: 0.08 });
+        const poleMat = topMat.clone();
+        if (poleMat.color) poleMat.color.multiplyScalar(0.72);
+        const plans = [
+          { x: 6.8, z: -2.4, count: 20, tableR: 1.85, stoolR: 2.35, label: "Bàn lớn", zone: "nhìn biển" },
+          { x: 2.2, z: 4.5, count: 8, tableR: 0.56, stoolR: 1.02, label: "Bàn vừa", zone: "gần sân khấu" }
+        ];
+        plans.forEach((plan) => {
+          const group = new THREE.Group();
+          group.position.set(plan.x, 0.6, plan.z);
+          const top = new THREE.Mesh(new THREE.CylinderGeometry(plan.tableR, plan.tableR, 0.07, plan.count > 8 ? 56 : 32), topMat);
+          top.position.y = 0.605;
+          const lip = new THREE.Mesh(new THREE.CylinderGeometry(plan.tableR * 0.94, plan.tableR * 0.94, 0.045, plan.count > 8 ? 40 : 24), poleMat);
+          lip.position.y = 0.55;
+          const poleR = plan.count > 8 ? 0.16 : 0.08;
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(poleR, poleR + 0.02, 0.56, 16), poleMat);
+          pole.position.y = 0.28;
+          const foot = new THREE.Mesh(new THREE.CylinderGeometry(poleR + 0.22, poleR + 0.28, 0.05, 20), poleMat);
+          foot.position.y = 0.025;
+          group.add(top, lip, pole, foot);
+          scene.add(group);
+          const seats = [];
+          const screens = [];
+          for (let s = 0; s < plan.count; s++) {
+            const a = (s / plan.count) * Math.PI * 2 - Math.PI / 2;
+            const stool = (s % 2 ? blue : red).clone(true);
+            stool.position.set(plan.x + Math.cos(a) * plan.stoolR, 0.6, plan.z + Math.sin(a) * plan.stoolR);
+            stool.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a));
+            scene.add(stool);
+            seats.push(stool.position.clone());
+            const screen = createScreen();
+            screen.position.copy(stool.position);
+            screen.position.y = 0.6 + 1.05;
+            screens.push(screen);
+          }
+          const tag = document.createElement("button");
+          tag.type = "button";
+          tag.className = "tag";
+          const index = worldTables.length;
+          tag.innerHTML = "<b>" + plan.label + "</b>";
+          tag.title = plan.count + " người · " + plan.zone;
+          tag.addEventListener("click", (e) => { e.stopPropagation(); joinTable(index + 1); });
+          labelsEl.appendChild(tag);
+          const picker = new THREE.Mesh(
+            new THREE.CylinderGeometry(plan.tableR, plan.tableR, 1.4, 20),
+            new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+          );
+          picker.position.set(plan.x, 1.3, plan.z);
+          picker.userData.table = index;
+          scene.add(picker);
+          pickers.push(picker);
+          const pos = new THREE.Vector3(plan.x, 0.6, plan.z);
+          worldTables.push({
+            index, pos, seats, screens, tag, mesh: group,
+            label: plan.label, zone: plan.zone,
+            reach: plan.stoolR + 0.7, stoolR: plan.stoolR
+          });
         });
       }
 
@@ -691,12 +770,10 @@
           return;
         }
         const t = worldTables[Math.floor(Math.random() * worldTables.length)];
-        let side = Math.random() < 0.5 ? 1 : -1;
-        if (t.pos.x < -9.2) side = 1;
-        else if (t.pos.x > -1.2) side = -1;
-        const sx = t.pos.x + side * 1.2;
-        const sz = t.pos.z;
-        const face = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+        const spot = servePoint(t);
+        const sx = spot.x;
+        const sz = spot.z;
+        const face = Math.atan2(t.pos.x - sx, t.pos.z - sz);
         const P = w.home;
         w.go(P[0], P[1], "Walk");
         w.pose("Take", 1.15, 0);
@@ -708,7 +785,18 @@
         w.go(P[0], 3.15, "Walk");
         w.queue.push({ run: () => loopWaiter(w) });
       }
-      function aisleX(x) { return Math.max(-11.2, Math.min(1.1, x)); }
+      function aisleX(x) { return Math.max(-11.2, Math.min(10.2, x)); }
+      function servePoint(t) {
+        const reach = t.reach || 1.2;
+        if (t.seats.length > 4) {
+          const len = Math.hypot(-0.35, 0.85);
+          return { x: t.pos.x + (-0.35 / len) * reach, z: t.pos.z + (0.85 / len) * reach };
+        }
+        let side = Math.random() < 0.5 ? 1 : -1;
+        if (t.pos.x < -9.2) side = 1;
+        else if (t.pos.x > -1.2) side = -1;
+        return { x: t.pos.x + side * reach, z: t.pos.z };
+      }
       function summonWaiter(tableNum) {
         const t = worldTables[tableNum - 1];
         if (!t) return false;
@@ -722,8 +810,9 @@
           const d = Math.hypot(c.x - t.pos.x, c.z - t.pos.z);
           if (d < best) { best = d; w = c; }
         });
-        const px = aisleX(t.pos.x + 0.95);
-        const pz = t.pos.z - 0.35;
+        const called = servePoint(t);
+        const px = aisleX(called.x);
+        const pz = called.z;
         const face = Math.atan2(t.pos.x - px, t.pos.z - pz);
         w.busy = true;
         w.callTable = tableNum;
@@ -912,12 +1001,23 @@
 
       function sitCamera(table, slot) {
         const eye = table.pos.clone();
-        eye.x += (slot - 2.5) * 0.4;
-        eye.z += 1.65;
-        eye.y = table.pos.y + 1.45;
         const look = table.pos.clone();
-        look.z -= 0.85;
-        look.y = table.pos.y + 0.95;
+        if (table.seats.length > 4) {
+          const seat = table.seats[(slot > 0 ? slot : 1) - 1] || table.pos;
+          const out = seat.clone().sub(table.pos);
+          out.y = 0;
+          if (out.lengthSq() < 1e-4) out.set(0, 0, 1);
+          out.normalize();
+          eye.copy(seat).addScaledVector(out, 1.35);
+          eye.y = table.pos.y + 1.55;
+          look.y = table.pos.y + 1.05;
+        } else {
+          eye.x += (slot - 2.5) * 0.4;
+          eye.z += 1.65;
+          eye.y = table.pos.y + 1.45;
+          look.z -= 0.85;
+          look.y = table.pos.y + 0.95;
+        }
         mode = "seat";
         camera = persp;
         sky.visible = true;
@@ -963,6 +1063,7 @@
           ring.visible = true;
           ring.position.copy(worldTables[hovered].pos);
           ring.position.y += 0.68;
+          ring.scale.setScalar((worldTables[hovered].stoolR || 0.72) / 0.72);
         } else ring.visible = false;
       });
 
@@ -1290,7 +1391,8 @@
         seated.forEach((row) => {
           if (row.table === myTable && row.id !== myId && row.slot) used.add(row.slot);
         });
-        for (let s = 1; s <= SEATS; s++) if (!used.has(s)) return s;
+        const total = (worldTables[myTable - 1] && worldTables[myTable - 1].seats.length) || SEATS;
+        for (let s = 1; s <= total; s++) if (!used.has(s)) return s;
         return 0;
       }
       function seatByPeer(pid) {
@@ -1400,7 +1502,7 @@
         $("btnHear").hidden = true;
         const info = tableInfo(n - 1);
         $("roomTitle").textContent = info.name + " · " + info.zone;
-        $("blurb").textContent = "Đang ngồi " + info.name + " (" + info.zone + ") · 4 ghế";
+        $("blurb").textContent = "Đang ngồi " + info.name + " (" + info.zone + ") · " + info.seats + " người";
         $("chatMsgs").innerHTML = "";
         sysMsg("Bạn đã ngồi " + info.name + ". Bấm Bật tiếng để nói chuyện với cả bàn.");
         toast("Đã ngồi. Bấm Bật tiếng khi muốn nói.", 3200);
@@ -1442,7 +1544,7 @@
         $("dockRoom").hidden = true;
         $("btnTalk").hidden = false;
         $("btnHear").hidden = true;
-        $("blurb").textContent = "12 bàn nhìn ra biển · bấm một bàn inox để ngồi";
+        $("blurb").textContent = "12 bàn 4 người · bàn 8 người · bàn lớn 20 người";
         setConn("on", "Vào cùng bàn là nói chuyện được với bạn bè");
         clearTimeout(callTimer);
         $("btnCall").disabled = false;
