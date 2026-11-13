@@ -329,6 +329,7 @@
       import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
       import { OrbitControls } from "three/addons/controls/OrbitControls.js";
       import { CSS3DRenderer, CSS3DObject } from "three/addons/renderers/CSS3DRenderer.js";
+      import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 
       const SEATS = 4;
       const ZONES = ["sát biển", "giữa sân", "gần quầy"];
@@ -671,8 +672,13 @@
         while (a < -Math.PI) a += Math.PI * 2;
         return a;
       }
+      function cloneActor(root) {
+        let skinned = false;
+        root.traverse((o) => { if (o.isSkinnedMesh) skinned = true; });
+        return skinned ? cloneSkeleton(root) : root.clone(true);
+      }
       function makeActor(gltf, x, z, yaw, speed) {
-        const model = gltf.scene.clone(true);
+        const model = cloneActor(gltf.scene);
         model.position.set(x, DECK_Y, z);
         model.rotation.y = yaw;
         model.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
