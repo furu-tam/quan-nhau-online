@@ -874,18 +874,26 @@
       function mountDj(stage, gltf) {
         const old = stage.getObjectByName("DJ");
         if (old) old.removeFromParent();
-        const dj = gltf.scene.getObjectByName("DJ");
-        if (!dj) return;
-        dj.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; } });
+        const dj = gltf.scene;
+        dj.name = "DJ";
+        dj.traverse((o) => {
+          if (!o.isMesh) return;
+          o.frustumCulled = false;
+          o.castShadow = true;
+          [].concat(o.material || []).forEach((m) => {
+            if (!m) return;
+            m.metalness = 0.04;
+            m.roughness = 0.62;
+            m.metalnessMap = null;
+            m.roughnessMap = null;
+          });
+        });
+        // Source mesh is 1 m tall and centered. Stand her where the old DJ stood, facing the floor.
+        const height = 1.65;
+        dj.scale.setScalar(height);
+        dj.position.set(0, 0.4 + height * 0.5, 0.32);
+        dj.rotation.y = Math.PI;
         stage.add(dj);
-        const src = THREE.AnimationClip.findByName(gltf.animations, "DJ_Show");
-        if (!src) return;
-        const tracks = src.tracks.filter((t) => t.name.indexOf("DJ_") === 0);
-        if (!tracks.length) return;
-        djMixer = new THREE.AnimationMixer(dj);
-        const action = djMixer.clipAction(new THREE.AnimationClip("DJ_Show", src.duration, tracks));
-        action.setLoop(THREE.LoopRepeat, Infinity);
-        action.play();
       }
       function loadStaff() {
         const gl = new GLTFLoader();
@@ -918,7 +926,7 @@
 
       const loader = new GLTFLoader();
       const djPromise = new Promise((resolve) => {
-        loader.load("assets/dj_stage.glb", resolve, undefined, () => resolve(null));
+        loader.load("assets/hinata_dj.glb", resolve, undefined, () => resolve(null));
       });
       loader.load("assets/quan-gio-bien_scene.glb", (gltf) => {
         root = gltf.scene;
