@@ -684,16 +684,24 @@
           a.setLoop(THREE.LoopRepeat, Infinity);
           actions[clip.name] = a;
         });
+        if (!actions.Idle) {
+          const show = Object.values(actions)[0];
+          if (show) ["Idle", "Walk", "Walk_Tray", "Take", "Serve"].forEach((n) => { actions[n] = show; });
+        }
         const actor = {
           model, mixer, actions, speed, x, z, yaw, targetYaw: yaw,
           goal: null, wait: 0, queue: [], clip: "",
           play(name) {
-            if (!actions[name]) return;
+            const a = this.actions[name];
+            if (!a) return;
             this.tune(name);
-            if (this.clip === name) return;
-            const prev = actions[this.clip];
-            actions[name].reset().fadeIn(0.18).play();
-            if (prev) prev.fadeOut(0.18);
+            if (this.clip && this.actions[this.clip] === a) {
+              this.clip = name;
+              return;
+            }
+            const prev = this.actions[this.clip];
+            a.reset().fadeIn(0.18).play();
+            if (prev && prev !== a) prev.fadeOut(0.18);
             this.clip = name;
           },
           tune(name) {
@@ -921,6 +929,19 @@
         djDance.root = dj;
         stage.add(dj);
       }
+      function fitStaff(gltf) {
+        const inner = gltf.scene;
+        inner.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(inner);
+        const h = Math.max(0.01, box.max.y - box.min.y);
+        const wrap = new THREE.Group();
+        wrap.scale.setScalar(1.62 / h);
+        wrap.add(inner);
+        wrap.updateMatrixWorld(true);
+        const fitted = new THREE.Box3().setFromObject(wrap);
+        inner.position.y -= fitted.min.y / wrap.scale.y;
+        gltf.scene = wrap;
+      }
       function loadStaff() {
         const gl = new GLTFLoader();
         let barG = null, waitG = null, left = 2;
@@ -938,7 +959,7 @@
           });
         };
         gl.load("assets/bartender.glb", (g) => { barG = g; ready(); }, undefined, () => { left = 0; });
-        gl.load("assets/waiter.glb", (g) => { tintWaiterOutfit(g.scene); waitG = g; ready(); }, undefined, () => { left = 0; });
+        gl.load("assets/mint_waiter.glb", (g) => { fitStaff(g); waitG = g; ready(); }, undefined, () => { left = 0; });
         gl.load("assets/guest.glb", (g) => {
           guestGltf = g;
           g.scene.traverse((o) => {
