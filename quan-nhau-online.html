@@ -871,28 +871,54 @@
           o.material = next.get(o.material);
         });
       }
+      const djDance = { t: { value: 0 }, root: null, baseY: 0 };
+      const DJ_STILL = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      function danceShader(shader) {
+        shader.uniforms.uTime = djDance.t;
+        shader.vertexShader = "uniform float uTime;\n" + shader.vertexShader.replace(
+          "#include <begin_vertex>",
+          [
+            "#include <begin_vertex>",
+            "float side = sign(transformed.x);",
+            "float reach = smoothstep(0.08, 0.30, abs(transformed.x));",
+            "float beat = sin(uTime * 5.2);",
+            "float sway = sin(uTime * 2.4);",
+            "transformed.y += reach * side * beat * 0.055;",
+            "transformed.z += reach * cos(uTime * 5.2) * 0.03;",
+            "float h = smoothstep(-0.45, 0.35, transformed.y);",
+            "transformed.x += sway * 0.02 * h;",
+            "transformed.y += abs(beat) * 0.012;"
+          ].join("\n")
+        );
+      }
       function mountDj(stage, gltf) {
         const old = stage.getObjectByName("DJ");
         if (old) old.removeFromParent();
         const dj = gltf.scene;
         dj.name = "DJ";
+        const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+        if (!DJ_STILL) depth.onBeforeCompile = danceShader;
         dj.traverse((o) => {
           if (!o.isMesh) return;
           o.frustumCulled = false;
           o.castShadow = true;
+          o.customDepthMaterial = depth;
           [].concat(o.material || []).forEach((m) => {
             if (!m) return;
             m.metalness = 0.04;
             m.roughness = 0.62;
             m.metalnessMap = null;
             m.roughnessMap = null;
+            if (!DJ_STILL) m.onBeforeCompile = danceShader;
           });
         });
         // Source mesh is 1 m tall and centered. Stand her where the old DJ stood, facing the floor.
         const height = 1.65;
         dj.scale.setScalar(height);
-        dj.position.set(0, 0.4 + height * 0.5, 0.32);
+        djDance.baseY = 0.4 + height * 0.5;
+        dj.position.set(0, djDance.baseY, 0.32);
         dj.rotation.y = Math.PI;
+        djDance.root = dj;
         stage.add(dj);
       }
       function loadStaff() {
@@ -1273,6 +1299,14 @@
         const dt = Math.min(clock.getDelta(), 0.05);
         if (mixer) mixer.update(dt);
         if (djMixer) djMixer.update(dt);
+        if (djDance.root && !DJ_STILL) {
+          const t = clock.elapsedTime;
+          djDance.t.value = t;
+          const beat = Math.sin(t * 5.2);
+          djDance.root.rotation.z = beat * 0.06;
+          djDance.root.rotation.y = Math.PI + Math.sin(t * 1.6) * 0.12;
+          djDance.root.position.y = djDance.baseY + Math.abs(beat) * 0.03;
+        }
         staff.forEach((p) => p.update(dt));
         const now = performance.now();
         seated.forEach((row) => {
